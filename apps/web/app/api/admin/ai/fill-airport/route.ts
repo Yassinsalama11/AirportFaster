@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const client = new OpenAI({
-  apiKey: process.env['OPENAI_API_KEY'],
-});
+export const dynamic = 'force-dynamic';
 
 const MODEL = process.env['OPENAI_MODEL'] ?? 'gpt-4o';
 const BASE_URL = process.env['NEXT_PUBLIC_BASE_URL'] ?? 'https://airportfaster.com';
@@ -42,6 +40,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!process.env['OPENAI_API_KEY']) {
       return NextResponse.json({ success: false, error: 'OPENAI_API_KEY is not configured' }, { status: 500 });
     }
+
+    const client = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] });
 
     const slug = slugify(airportName);
     const canonicalUrl = `${BASE_URL}/airports/${slug}`;
