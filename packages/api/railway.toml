@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 buildCommand = "pnpm --filter @airportfaster/db exec prisma generate && pnpm --filter @airportfaster/db build && pnpm --filter @airportfaster/shared build && pnpm --filter @airportfaster/api build"
 
 [deploy]
-startCommand = "node packages/api/dist/server.js"
+startCommand = "pnpm --filter @airportfaster/db exec prisma migrate deploy && node packages/api/dist/server.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
