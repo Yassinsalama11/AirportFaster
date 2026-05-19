@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "pnpm --filter @airportfaster/db exec prisma generate && pnpm --filter @airportfaster/api build"
+buildCommand = "pnpm --filter @airportfaster/db exec prisma generate && pnpm --filter @airportfaster/db build && pnpm --filter @airportfaster/shared build && pnpm --filter @airportfaster/api build"
 
 [deploy]
 startCommand = "node packages/api/dist/server.js"
