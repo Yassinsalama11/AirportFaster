@@ -1,0 +1,259 @@
+AirportFaster — Database Architecture & Entity Relationship Design
+
+Version: 1.0 · Last updated: 2026-05-14 · Status: Draft for founder review
+
+Document Purpose
+
+This document defines the PostgreSQL database architecture for AirportFaster: domains, tables, key columns, relationships, and the rules that protect financial and operational integrity. It is the implementation contract for the Prisma schema. It incorporates the founder decisions logged in DECISIONS.md: AirportFaster is merchant of record (D-006), the customer is charged at checkout (D-007), and the pricing engine supports both fixed price and cost+markup, configurable per airport/service (D-008).
+
+⸻
+
+1. Database Principles
+
+1. PostgreSQL is the single source of truth.
+2. All money is stored as integers in minor units (cents/fils) plus an ISO 4217 currency code. No floats for money.
+3. Financial and policy data is snapshotted at booking time and never recomputed from live config.
+4. All primary keys are UUID v4. All tables carry created_at and updated_at (timestamptz). Soft-deletable entities carry deleted_at.
+5. One domain owns its tables; cross-domain reads go through the owning domain's service.
+6. Multi-language content lives in dedicated *_translations tables keyed by (parent_id, locale), never as JSON blobs of language.
+7. Every status-bearing entity has a companion *_history or *_events table for a full audit trail.
+8. Enums are implemented as Postgres enums or constrained lookup tables; never free text.
+9. Indexes are defined for every foreign key and every column used in search, filtering, or admin list views.
+
+⸻
+
+2. Domain Map
+
+The schema is organised into the following domains, mirroring the backend modules:
+
+Identity & Access · Airports · Services · Suppliers · Pricing · Availability · Search · Bookings · Payments & Settlements · Refunds · Incidents · Notifications · Flight Data · CMS / SEO · AI Engine · Analytics · Audit · Settings.
+
+⸻
+
+3. Identity & Access Domain
+
+users — internal staff and (future) supplier users. Columns: id, email (unique), password_hash, full_name, status (active/suspended), last_login_at, two_factor_secret (nullable), type (staff/supplier).
+roles — id, key (super_admin, operations, customer_support, finance, supplier_manager, content_seo, analyst), name.
+permissions — id, key, description.
+role_permissions — role_id, permission_id.
+user_roles — user_id, role_id.
+sessions — id, user_id, token_hash, ip, user_agent, expires_at, revoked_at.
+audit_logs — id, actor_user_id, action, entity_type, entity_id, before (jsonb), after (jsonb), ip, created_at. Written for every sensitive action.
+
+Note: customers are NOT in users (D-002, guest checkout). See the Bookings domain.
+
+⸻
+
+4. Airports Domain
+
+airports — id, iata_code (unique), icao_code, name, country_code, city, timezone, latitude, longitude, status (draft/active/inactive), is_featured, slug (unique), published_at, created_by, updated_by.
+airport_translations — id, airport_id, locale (en/ar/...), short_description, full_description, arrival_instructions, departure_instructions, transit_instructions. Unique (airport_id, locale).
+airport_images — id, airport_id, storage_key, alt_text, sort_order, is_primary.
+airport_seo — id, airport_id, locale, meta_title, meta_description, focus_keywords, canonical_url, og_image_key, schema_json (jsonb), direct_answer_block, ai_summary. Unique (airport_id, locale).
+airport_services — the join that makes a service available at an airport. id, airport_id, service_id, status (active/inactive), cut_off_minutes, min_notice_minutes, sort_order. Unique (airport_id, service_id). This row is the anchor for pricing, availability, and supplier coverage.
+
+⸻
+
+5. Services Domain
+
+services — id, key (fast_track, meet_and_greet, lounge_access), name, slug (unique), service_type, status, sort_order.
+service_translations — id, service_id, locale, name, description, benefits, who_is_it_for, how_it_works. Unique (service_id, locale).
+service_seo — id, service_id, locale, meta_title, meta_description, focus_keywords, canonical_url, og_image_key, schema_json, direct_answer_block, ai_summary. Unique (service_id, locale).
+
+⸻
+
+6. Suppliers Domain
+
+suppliers — id, name, legal_name, status (pending/verified/suspended), country_code, rating, reliability_score, payout_currency, payout_details (jsonb, encrypted at rest), created_by.
+supplier_contacts — id, supplier_id, name, role, email, phone, whatsapp, is_primary.
+supplier_airports — id, supplier_id, airport_id, status. Unique (supplier_id, airport_id).
+supplier_services — id, supplier_id, service_id, status. Unique (supplier_id, service_id).
+supplier_coverage — id, supplier_id, airport_service_id, status, priority. The precise "this supplier can fulfil this service at this airport" row, used by supplier assignment. Unique (supplier_id, airport_service_id).
+supplier_documents — id, supplier_id, type (license/contract/insurance/other), storage_key (private bucket), status (pending/approved/rejected), expires_at, reviewed_by.
+supplier_sla_metrics — id, supplier_id, period_start, period_end, response_time_avg_minutes, confirmation_speed_avg_minutes, cancellation_rate, no_show_rate, complaint_rate, reliability_score. Recomputed by a background job.
+
+⸻
+
+7. Pricing Domain (supports D-008: fixed OR cost+markup, per row)
+
+pricing_rules — id, airport_service_id, supplier_id (nullable — null = applies to the airport-service generally), mode (fixed | cost_plus_markup), base_price_minor (used when mode = fixed), supplier_cost_minor (used when mode = cost_plus_markup), markup_type (percentage | fixed_amount), markup_value, currency, passenger_pricing (jsonb: per-pax multipliers/tiers), peak_rules (jsonb), valid_from, valid_to, status, priority, created_by. Rule precedence: supplier-specific over general, higher priority over lower, narrower date range over wider.
+currency_rates — id, base_currency, quote_currency, rate, fetched_at. Updated by a background job.
+promo_codes — id, code (unique), discount_type (percentage/fixed), discount_value, currency, max_redemptions, redemptions_used, valid_from, valid_to, min_booking_minor, status, applicable_scope (jsonb: airports/services). Platform-funded in MVP (A-009).
+promo_redemptions — id, promo_code_id, booking_id, discount_applied_minor, created_at.
+
+The pricing engine reads these tables to produce a quote; the resulting numbers are then frozen into booking_price_snapshots (see Bookings).
+
+⸻
+
+8. Availability Domain
+
+availability_rules — id, airport_service_id, days_of_week (int[]), time_windows (jsonb), cut_off_minutes, min_notice_minutes, capacity_per_slot (nullable), status.
+supplier_schedules — id, supplier_id, airport_id, days_of_week, time_windows, capacity, status.
+blackout_dates — id, scope_type (airport/airport_service/supplier), scope_id, date_from, date_to, reason.
+capacity_rules — id, airport_service_id, slot_definition (jsonb), max_bookings.
+
+Availability engine output is computed, not stored, except short-lived caching in Redis.
+
+⸻
+
+9. Search Domain
+
+Search in MVP runs on PostgreSQL full-text search over airports, airport_translations, services, and the airport_services join, filtered by availability and pricing at query time. No dedicated persistent search tables in MVP beyond:
+search_synonyms — id, term, synonym (for IATA codes, city aliases, common misspellings).
+Analytics of searches lives in the Analytics domain (search_events).
+
+⸻
+
+10. Bookings Domain
+
+customers — id, email, phone, whatsapp, full_name, locale, is_vip, notes, created_at. Keyed by email/phone for history; no auth credentials in MVP (D-002). Deduplicated on email.
+bookings — id, reference (unique, human-readable), customer_id, airport_service_id, supplier_id (nullable until assigned), status (enum, see lifecycle), direction (arrival/departure/transit), service_datetime (timestamptz), passenger_count, special_requests, locale, currency, total_minor, manage_token_hash, manage_token_expires_at, source (homepage/airport_page/...), created_at, updated_at.
+booking_passengers — id, booking_id, full_name, type (adult/child/infant), notes.
+booking_flights — id, booking_id, flight_number, airline_code, scheduled_time, terminal, gate, flight_status, last_synced_at.
+booking_price_snapshots — id, booking_id, base_price_minor, supplier_cost_minor, markup_minor, passenger_adjustment_minor, peak_adjustment_minor, discount_minor, tax_estimate_minor, total_minor, margin_minor, currency, pricing_rule_id (reference only), promo_code_id (nullable), created_at. Immutable. This is the financial truth for the booking (D-004).
+booking_status_history — id, booking_id, from_status, to_status, actor_type (system/staff/supplier/customer), actor_id, reason, created_at.
+booking_supplier_assignments — id, booking_id, supplier_id, assigned_by, assignment_method (manual/rule_based), status (offered/accepted/rejected/reassigned), offered_at, responded_at, response_note. Full history of assignment attempts.
+booking_notes — id, booking_id, author_user_id, body, visibility (internal/customer), created_at.
+booking_events — id, booking_id, type, payload (jsonb), created_at. The timeline feed (created, paid, supplier assigned, confirmed, flight delay detected, incident, completed, refunded...).
+
+Booking lifecycle statuses: Draft · Pending Payment · Paid · Pending Supplier Assignment · Supplier Assigned · Pending Supplier Confirmation · Confirmed · In Progress · Completed · Cancelled · Refunded · Failed/Incident. Because the customer is charged at checkout (D-007), the normal path is Pending Payment → Paid → Pending Supplier Assignment with no auth-hold state.
+
+⸻
+
+11. Payments & Settlements Domain (D-006 merchant of record)
+
+payments — id, booking_id, stripe_payment_intent_id (unique), amount_minor, currency, status (requires_payment/processing/succeeded/failed/refunded/partially_refunded), payment_method_type, captured_at, created_at.
+payment_transactions — id, payment_id, type (charge/refund/adjustment), amount_minor, currency, stripe_object_id, created_at. Append-only ledger.
+stripe_webhook_events — id, stripe_event_id (unique), type, payload (jsonb), processing_status (received/processed/failed), processed_at, error. Ensures idempotency; every webhook persisted before processing.
+settlements — id, supplier_id, period_start, period_end, status (draft/approved/paid), gross_minor, deductions_minor, net_payable_minor, currency, approved_by, paid_at.
+settlement_lines — id, settlement_id, booking_id, supplier_cost_minor, refund_adjustment_minor, penalty_minor, net_minor. Links each booking's supplier cost into a payout.
+payouts — id, settlement_id, amount_minor, currency, method, external_reference, status, paid_at.
+
+⸻
+
+12. Refunds Domain
+
+refunds — id, booking_id, payment_id, type (full/partial/none), requested_amount_minor, approved_amount_minor, currency, reason, requested_by (customer/staff), policy_snapshot (jsonb — the cancellation policy as it was at request time), status (requested/admin_approved/finance_approved/processing/completed/rejected), admin_approved_by, finance_approved_by, stripe_refund_id, created_at, completed_at.
+refund_status_history — id, refund_id, from_status, to_status, actor_id, note, created_at.
+cancellation_policies — id, scope_type (airport_service/service/global), scope_id, windows (jsonb: time-before-service → refund %), supplier_penalty_rules (jsonb), status. The applicable policy is snapshotted onto the booking at booking time and onto the refund at request time.
+
+⸻
+
+13. Incidents Domain
+
+incidents — id, booking_id (nullable), supplier_id (nullable), type (flight_delay/supplier_no_show/passenger_no_show/wrong_terminal/communication_failure/payment_issue/service_complaint/other), severity (low/medium/high/critical), status (created/assigned/in_progress/waiting_external/resolved/closed), opened_by, resolution_reason, created_at, resolved_at.
+incident_updates — id, incident_id, author_user_id, body, created_at.
+incident_assignments — id, incident_id, assigned_to_user_id, assigned_team (operations/support/finance/supplier_manager), assigned_at.
+
+Supplier-related resolved incidents feed supplier_sla_metrics.
+
+⸻
+
+14. Notifications Domain
+
+notification_templates — id, key, channel (email/whatsapp), locale, subject, body, variables (jsonb schema of expected merge fields), status, version.
+notification_queue — id, template_key, channel, recipient, locale, payload (jsonb), status (queued/sending/sent/failed), attempts, next_attempt_at, created_at.
+notification_logs — id, queue_id, channel, recipient, status, provider_message_id, error, sent_at. Delivery audit trail with retry tracking.
+
+⸻
+
+15. Flight Data Domain
+
+flight_data_cache — id, flight_number, date, airline_code, scheduled_departure, scheduled_arrival, status, terminal, gate, provider, fetched_at. Shared cache across bookings; booking_flights references the latest sync.
+flight_monitor_jobs — id, booking_id, flight_number, monitor_from, monitor_until, last_checked_at, status.
+
+⸻
+
+16. CMS / SEO Domain
+
+pages — id, type (airport/service/airport_service/guide/faq/policy), slug (unique), status (draft/published), airport_id (nullable), service_id (nullable), published_at, created_by.
+page_translations — id, page_id, locale, title, body (structured jsonb: blocks incl. direct-answer, FAQ, content), meta_title, meta_description, canonical_url, og_image_key, hreflang_group_id. Unique (page_id, locale).
+faqs — id, scope_type (airport/service/airport_service/page/global), scope_id, locale, question, answer, sort_order, status.
+schema_blocks — id, page_id, locale, schema_type (FAQPage/BreadcrumbList/Service/...), schema_json (jsonb), status.
+blog_posts — id, slug, status, author, published_at (guide articles; uses pages/page_translations pattern or its own translations).
+internal_links — id, from_page_id, to_page_id, anchor_text, locale.
+sitemap_logs — id, generated_at, url_count, status, trigger (publish/scheduled).
+content_approval_workflow — id, entity_type (page_translation/airport_seo/service_seo/faq/translation_job), entity_id, state (draft/in_review/approved/published/rejected), submitted_by, reviewed_by, reviewed_at, notes. The single workflow table tracking the Draft → Review → Edit → Approve → Publish lifecycle for all content (D-005).
+
+⸻
+
+17. AI Engine Domain (D-005 — drafts only, never auto-publish)
+
+ai_generation_logs — id, type (airport_description/seo_metadata/faq/schema/ai_summary/guide/service_explainer/internal_links), target_entity_type, target_entity_id, locale, model, prompt_version, prompt (text), output (jsonb), token_cost, status (generated/accepted/edited/rejected), reviewed_by, created_at.
+translation_jobs — id, source_entity_type, source_entity_id, source_locale, target_locale, source_text, ai_draft, final_text (nullable), state (draft/in_review/approved/published/rejected), version, reviewed_by, created_at. Supports versioning and manual override.
+ai_prompt_templates — id, key, version, body, status. Versioned prompts so generations are reproducible and auditable.
+
+All AI output enters content_approval_workflow before it can publish.
+
+⸻
+
+18. Analytics Domain
+
+search_events — id, session_id, airport_id (nullable), service_id (nullable), query, filters (jsonb), result_count, created_at.
+booking_events — id, booking_id, type (checkout_started/payment_completed/booking_completed/...), created_at. (Funnel-level; distinct from the per-booking timeline booking_events table — name this analytics_funnel_events to avoid collision.)
+conversion_events — id, session_id, type, page_id (nullable), value_minor (nullable), created_at.
+page_views — id, session_id, page_id, locale, referrer, created_at.
+
+Note: rename collision — the analytics funnel table is analytics_funnel_events; the per-booking timeline table in §10 is booking_events. Documented here so the Prisma schema keeps them distinct.
+
+⸻
+
+19. Settings & Audit Domain
+
+settings — id, key (unique), value (jsonb), description, updated_by. Platform configuration (default currency, supported locales, feature flags).
+audit_logs — defined in §3; referenced by all domains.
+
+⸻
+
+20. Key Relationships (ERD summary)
+
+- airport 1—N airport_services N—1 service. airport_service is the central hub.
+- airport_service 1—N pricing_rules, 1—N availability_rules, 1—N supplier_coverage.
+- supplier N—N airport (via supplier_airports), N—N service (via supplier_services), N—N airport_service (via supplier_coverage).
+- customer 1—N bookings. booking N—1 airport_service, booking N—1 supplier (nullable).
+- booking 1—1 booking_price_snapshot, 1—N booking_passengers, 1—N booking_flights, 1—N booking_status_history, 1—N booking_supplier_assignments, 1—N booking_notes, 1—N booking_events.
+- booking 1—N payments 1—N payment_transactions. booking 1—N refunds.
+- settlement 1—N settlement_lines (each line N—1 booking). settlement 1—N payouts.
+- incident N—1 booking (nullable), N—1 supplier (nullable).
+- page 1—N page_translations, 1—N schema_blocks, N—N page (via internal_links).
+- ai_generation_logs / translation_jobs → content_approval_workflow → published content.
+
+⸻
+
+21. Indexing Strategy
+
+- Unique: airports.iata_code, airports.slug, services.slug, pages.slug, bookings.reference, payments.stripe_payment_intent_id, stripe_webhook_events.stripe_event_id, promo_codes.code.
+- Composite: airport_services(airport_id, service_id); *_translations(parent_id, locale); supplier_coverage(supplier_id, airport_service_id); pricing_rules(airport_service_id, status, priority).
+- Search/filter: bookings(status, service_datetime), bookings(customer_id), incidents(status, severity), notification_queue(status, next_attempt_at), flight_monitor_jobs(status, last_checked_at).
+- Every foreign key column is indexed.
+- GIN indexes on full-text search columns (airport/service names + translations) and on jsonb columns queried by key.
+
+⸻
+
+22. Data Integrity Rules
+
+- Foreign keys enforced everywhere; ON DELETE RESTRICT for financial/booking data, ON DELETE CASCADE only for pure child content (e.g. translations, images).
+- booking_price_snapshots, payment_transactions, stripe_webhook_events, audit_logs, ai_generation_logs are append-only — no updates, no deletes.
+- Money columns are NOT NULL with a currency companion column; CHECK constraints ensure non-negative where appropriate.
+- Status transitions enforced in the service layer and recorded in the relevant *_history table; the DB stores current status, history stores the path.
+- Soft delete (deleted_at) for airports, services, suppliers, pages; hard delete forbidden for anything financial or booking-linked.
+
+⸻
+
+23. Migration & Seeding
+
+- Prisma Migrate; every migration reviewed and reversible where possible.
+- Seed data: roles, permissions, role_permissions, the three MVP services, default settings, notification_templates, cancellation_policies (global default), ai_prompt_templates. No seeded airports or prices (D: nothing hardcoded).
+- Environments: development, staging, production — each with its own database; staging mirrors production schema.
+
+⸻
+
+24. Open Questions Affecting the Schema
+
+See ASSUMPTIONS.md — A-001 (base currency), A-006 (lounge inventory integration), A-008 (tax engine), A-009 (supplier-funded promos). Confirmation of these may add columns/tables; the current schema is designed so those additions are additive, not breaking.
+
+⸻
+
+25. Next Document
+
+API Specification — defines the public, admin, and (future) supplier API contracts that sit on top of this schema.

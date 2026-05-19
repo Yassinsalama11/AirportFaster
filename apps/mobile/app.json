@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "AirportFaster",
+    "slug": "airportfaster",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.airportfaster.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0A"
+      },
+      "package": "com.airportfaster.app"
+    },
+    "scheme": "airportfaster",
+    "plugins": ["expo-router"]
+  }
+}

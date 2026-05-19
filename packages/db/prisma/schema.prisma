@@ -1,0 +1,1541 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Identity & Access Domain
+// =============================================================================
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  name         String?
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  sessions                  Session[]
+  userRoles                 UserRole[]
+  auditLogs                 AuditLog[]
+  createdPages              Page[]                    @relation("PageCreatedBy")
+  submittedContentWorkflows ContentApprovalWorkflow[] @relation("ContentWorkflowSubmittedBy")
+  reviewedContentWorkflows  ContentApprovalWorkflow[] @relation("ContentWorkflowReviewedBy")
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  displayName String   @map("display_name")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  displayName String   @map("display_name")
+  description String?
+  domain      String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model Session {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  lastUsedAt DateTime @default(now()) @map("last_used_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// =============================================================================
+// Airports Domain
+// =============================================================================
+
+enum AirportStatus {
+  draft
+  active
+  inactive
+}
+
+model Airport {
+  id          String        @id @default(uuid()) @db.Uuid
+  iataCode    String        @unique @map("iata_code")
+  icaoCode    String?       @unique @map("icao_code")
+  slug        String        @unique
+  country     String        @db.Char(2) // ISO 3166-1 alpha-2
+  city        String
+  timezone    String
+  latitude    Decimal?      @db.Decimal(10, 7)
+  longitude   Decimal?      @db.Decimal(10, 7)
+  status      AirportStatus @default(draft)
+  publishedAt DateTime?     @map("published_at") @db.Timestamptz
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  translations        AirportTranslation[]
+  images              AirportImage[]
+  seo                 AirportSeo?
+  airportServices     AirportService[]
+  pages               Page[]
+  supplierAirports    SupplierAirport[]
+  supplierSchedules   SupplierScheduleLink[]
+
+  @@index([country])
+  @@index([status])
+  @@map("airports")
+}
+
+model AirportTranslation {
+  id          String   @id @default(uuid()) @db.Uuid
+  airportId   String   @map("airport_id") @db.Uuid
+  locale      String   @db.VarChar(10)
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  airport Airport @relation(fields: [airportId], references: [id], onDelete: Cascade)
+
+  @@unique([airportId, locale])
+  @@map("airport_translations")
+}
+
+model AirportImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  airportId String   @map("airport_id") @db.Uuid
+  url       String
+  altText   String?  @map("alt_text")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  airport Airport @relation(fields: [airportId], references: [id], onDelete: Cascade)
+
+  @@map("airport_images")
+}
+
+model AirportSeo {
+  id              String   @id @default(uuid()) @db.Uuid
+  airportId       String   @unique @map("airport_id") @db.Uuid
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  ogTitle         String?  @map("og_title")
+  ogDescription   String?  @map("og_description")
+  ogImage         String?  @map("og_image")
+  canonicalUrl    String?  @map("canonical_url")
+  schemaJson      Json?    @map("schema_json")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  airport   Airport                   @relation(fields: [airportId], references: [id], onDelete: Cascade)
+  workflows ContentApprovalWorkflow[]
+
+  @@map("airport_seo")
+}
+
+// =============================================================================
+// Services Domain
+// =============================================================================
+
+enum ServiceStatus {
+  draft
+  active
+  inactive
+}
+
+model Service {
+  id        String        @id @default(uuid()) @db.Uuid
+  slug      String        @unique
+  icon      String?
+  status    ServiceStatus @default(draft)
+  sortOrder Int           @default(0) @map("sort_order")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  translations     ServiceTranslation[]
+  seo              ServiceSeo?
+  airportServices  AirportService[]
+  pages            Page[]
+  supplierServices SupplierService[]
+
+  @@map("services")
+}
+
+model ServiceTranslation {
+  id          String   @id @default(uuid()) @db.Uuid
+  serviceId   String   @map("service_id") @db.Uuid
+  locale      String   @db.VarChar(10)
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, locale])
+  @@map("service_translations")
+}
+
+model ServiceSeo {
+  id              String   @id @default(uuid()) @db.Uuid
+  serviceId       String   @unique @map("service_id") @db.Uuid
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  ogTitle         String?  @map("og_title")
+  ogDescription   String?  @map("og_description")
+  canonicalUrl    String?  @map("canonical_url")
+  schemaJson      Json?    @map("schema_json")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  service   Service                   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  workflows ContentApprovalWorkflow[]
+
+  @@map("service_seo")
+}
+
+model AirportService {
+  id               String   @id @default(uuid()) @db.Uuid
+  airportId        String   @map("airport_id") @db.Uuid
+  serviceId        String   @map("service_id") @db.Uuid
+  isActive         Boolean  @default(true) @map("is_active")
+  cutOffMinutes    Int?     @map("cut_off_minutes")
+  minNoticeMinutes Int?     @map("min_notice_minutes")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  airport           Airport            @relation(fields: [airportId], references: [id], onDelete: Cascade)
+  service           Service            @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  pricingRules      PricingRule[]
+  availabilityRules AvailabilityRule[]
+  supplierCoverages SupplierCoverage[]
+  bookings          Booking[]
+
+  @@unique([airportId, serviceId])
+  @@map("airport_services")
+}
+
+// =============================================================================
+// Settings Domain
+// =============================================================================
+
+model Setting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  domain    String   @default("general")
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([domain])
+  @@map("settings")
+}
+
+// =============================================================================
+// CMS / SEO Domain
+// =============================================================================
+
+enum PageType {
+  airport
+  service
+  airport_service
+  guide
+  faq
+  policy
+}
+
+enum CmsPublishStatus {
+  draft
+  published
+}
+
+enum FaqScopeType {
+  airport
+  service
+  airport_service
+  page
+  global
+}
+
+enum SchemaBlockStatus {
+  draft
+  published
+}
+
+enum SitemapLogStatus {
+  success
+  failed
+}
+
+enum SitemapLogTrigger {
+  publish
+  scheduled
+  manual
+}
+
+enum ContentWorkflowEntityType {
+  page_translation
+  airport_seo
+  service_seo
+  faq
+  translation_job
+}
+
+enum ContentWorkflowState {
+  draft
+  in_review
+  approved
+  published
+  rejected
+}
+
+enum ContentWorkflowSource {
+  human
+  ai
+}
+
+model Page {
+  id          String           @id @default(uuid()) @db.Uuid
+  type        PageType
+  slug        String           @unique
+  status      CmsPublishStatus @default(draft)
+  airportId   String?          @map("airport_id") @db.Uuid
+  serviceId   String?          @map("service_id") @db.Uuid
+  publishedAt DateTime?        @map("published_at") @db.Timestamptz
+  createdById String?          @map("created_by") @db.Uuid
+  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  airport       Airport?          @relation(fields: [airportId], references: [id], onDelete: SetNull)
+  service       Service?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  createdBy     User?             @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  translations  PageTranslation[]
+  schemaBlocks  SchemaBlock[]
+  outboundLinks InternalLink[]    @relation("InternalLinkFromPage")
+  inboundLinks  InternalLink[]    @relation("InternalLinkToPage")
+
+  @@index([type])
+  @@index([status])
+  @@index([airportId])
+  @@index([serviceId])
+  @@map("pages")
+}
+
+model PageTranslation {
+  id              String   @id @default(uuid()) @db.Uuid
+  pageId          String   @map("page_id") @db.Uuid
+  locale          String   @db.VarChar(10)
+  title           String
+  h1              String?
+  directAnswer    String?  @map("direct_answer")
+  body            String?
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  aiSummary       String?  @map("ai_summary")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  page      Page                      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workflows ContentApprovalWorkflow[]
+
+  @@unique([pageId, locale])
+  @@map("page_translations")
+}
+
+model Faq {
+  id        String           @id @default(uuid()) @db.Uuid
+  scopeType FaqScopeType     @map("scope_type")
+  scopeId   String?          @map("scope_id") @db.Uuid
+  locale    String           @db.VarChar(10)
+  question  String
+  answer    String
+  sortOrder Int              @default(0) @map("sort_order")
+  status    CmsPublishStatus @default(draft)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  workflows ContentApprovalWorkflow[]
+
+  @@index([scopeType, scopeId])
+  @@index([locale])
+  @@index([status])
+  @@map("faqs")
+}
+
+model SchemaBlock {
+  id         String            @id @default(uuid()) @db.Uuid
+  pageId     String            @map("page_id") @db.Uuid
+  locale     String            @db.VarChar(10)
+  schemaType String            @map("schema_type")
+  schemaJson Json              @map("schema_json")
+  status     SchemaBlockStatus @default(draft)
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, locale])
+  @@index([schemaType])
+  @@index([status])
+  @@map("schema_blocks")
+}
+
+model InternalLink {
+  id         String   @id @default(uuid()) @db.Uuid
+  fromPageId String   @map("from_page_id") @db.Uuid
+  toPageId   String   @map("to_page_id") @db.Uuid
+  anchorText String   @map("anchor_text")
+  locale     String   @db.VarChar(10)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  fromPage Page @relation("InternalLinkFromPage", fields: [fromPageId], references: [id], onDelete: Cascade)
+  toPage   Page @relation("InternalLinkToPage", fields: [toPageId], references: [id], onDelete: Cascade)
+
+  @@unique([fromPageId, toPageId, locale, anchorText])
+  @@index([toPageId])
+  @@map("internal_links")
+}
+
+model SitemapLog {
+  id          String            @id @default(uuid()) @db.Uuid
+  generatedAt DateTime          @default(now()) @map("generated_at") @db.Timestamptz
+  urlCount    Int               @map("url_count")
+  status      SitemapLogStatus
+  trigger     SitemapLogTrigger
+  error       String?
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([generatedAt])
+  @@index([status])
+  @@map("sitemap_logs")
+}
+
+model ContentApprovalWorkflow {
+  id                String                    @id @default(uuid()) @db.Uuid
+  entityType        ContentWorkflowEntityType @map("entity_type")
+  entityId          String                    @map("entity_id") @db.Uuid
+  state             ContentWorkflowState      @default(draft)
+  source            ContentWorkflowSource     @default(human)
+  submittedById     String?                   @map("submitted_by") @db.Uuid
+  reviewedById      String?                   @map("reviewed_by") @db.Uuid
+  reviewedAt        DateTime?                 @map("reviewed_at") @db.Timestamptz
+  notes             String?
+  pageTranslationId String?                   @map("page_translation_id") @db.Uuid
+  airportSeoId      String?                   @map("airport_seo_id") @db.Uuid
+  serviceSeoId      String?                   @map("service_seo_id") @db.Uuid
+  faqId             String?                   @map("faq_id") @db.Uuid
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+
+  submittedBy     User?            @relation("ContentWorkflowSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedBy      User?            @relation("ContentWorkflowReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  pageTranslation PageTranslation? @relation(fields: [pageTranslationId], references: [id], onDelete: Cascade)
+  airportSeo      AirportSeo?      @relation(fields: [airportSeoId], references: [id], onDelete: Cascade)
+  serviceSeo      ServiceSeo?      @relation(fields: [serviceSeoId], references: [id], onDelete: Cascade)
+  faq             Faq?             @relation(fields: [faqId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([state])
+  @@index([source])
+  @@index([submittedById])
+  @@index([reviewedById])
+  @@map("content_approval_workflow")
+}
+
+// =============================================================================
+// Pricing Domain
+// =============================================================================
+
+enum PricingMode {
+  fixed
+  cost_plus_markup
+}
+
+enum MarkupType {
+  percentage
+  fixed_amount
+}
+
+enum PricingRuleStatus {
+  active
+  inactive
+}
+
+enum DiscountType {
+  percentage
+  fixed
+}
+
+enum PromoStatus {
+  active
+  inactive
+  expired
+}
+
+/// passengerPricing JSON shape: { "1": 1.0, "2": 0.95, "3": 0.90, ... }
+/// keyed by passenger count string, value is a multiplier (1.0 = no change)
+model PricingRule {
+  id               String            @id @default(uuid()) @db.Uuid
+  airportServiceId String            @map("airport_service_id") @db.Uuid
+  supplierId       String?           @map("supplier_id") @db.Uuid
+  mode             PricingMode
+  basePriceMinor   Int?              @map("base_price_minor")
+  supplierCostMinor Int?             @map("supplier_cost_minor")
+  markupType       MarkupType?       @map("markup_type")
+  markupValue      Decimal?          @db.Decimal(10, 4)
+  currency         String            @db.VarChar(3)
+  passengerPricing Json?             @map("passenger_pricing")
+  peakRules        Json?             @map("peak_rules")
+  validFrom        DateTime?         @map("valid_from") @db.Timestamptz
+  validTo          DateTime?         @map("valid_to") @db.Timestamptz
+  priority         Int               @default(0)
+  status           PricingRuleStatus @default(active)
+  createdById      String?           @map("created_by") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  airportService AirportService @relation(fields: [airportServiceId], references: [id], onDelete: Cascade)
+
+  @@index([airportServiceId, status, priority])
+  @@map("pricing_rules")
+}
+
+model CurrencyRate {
+  id            String   @id @default(uuid()) @db.Uuid
+  baseCurrency  String   @map("base_currency") @db.VarChar(3)
+  quoteCurrency String   @map("quote_currency") @db.VarChar(3)
+  rate          Decimal  @db.Decimal(18, 8)
+  fetchedAt     DateTime @map("fetched_at") @db.Timestamptz
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([baseCurrency, quoteCurrency])
+  @@map("currency_rates")
+}
+
+model PromoCode {
+  id              String      @id @default(uuid()) @db.Uuid
+  code            String      @unique @db.VarChar(50)
+  discountType    DiscountType @map("discount_type")
+  discountValue   Decimal     @db.Decimal(10, 4) @map("discount_value")
+  currency        String?     @db.VarChar(3)
+  maxRedemptions  Int?        @map("max_redemptions")
+  redemptionsUsed Int         @default(0) @map("redemptions_used")
+  validFrom       DateTime?   @map("valid_from") @db.Timestamptz
+  validTo         DateTime?   @map("valid_to") @db.Timestamptz
+  minBookingMinor Int?        @map("min_booking_minor")
+  status          PromoStatus @default(active)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("promo_codes")
+}
+
+// =============================================================================
+// Availability Domain
+// =============================================================================
+
+enum AvailabilityStatus {
+  active
+  inactive
+}
+
+enum BlackoutScopeType {
+  airport
+  airport_service
+}
+
+model AvailabilityRule {
+  id               String             @id @default(uuid()) @db.Uuid
+  airportServiceId String             @map("airport_service_id") @db.Uuid
+  daysOfWeek       Int[]              @map("days_of_week")
+  timeWindows      Json               @map("time_windows")
+  cutOffMinutes    Int                @default(120) @map("cut_off_minutes")
+  minNoticeMinutes Int                @default(60) @map("min_notice_minutes")
+  capacityPerSlot  Int?               @map("capacity_per_slot")
+  status           AvailabilityStatus @default(active)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  airportService AirportService @relation(fields: [airportServiceId], references: [id], onDelete: Cascade)
+
+  @@index([airportServiceId, status])
+  @@map("availability_rules")
+}
+
+model BlackoutDate {
+  id        String            @id @default(uuid()) @db.Uuid
+  scopeType BlackoutScopeType @map("scope_type")
+  scopeId   String            @map("scope_id") @db.Uuid
+  dateFrom  DateTime          @map("date_from") @db.Date
+  dateTo    DateTime          @map("date_to") @db.Date
+  reason    String?
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([scopeType, scopeId])
+  @@map("blackout_dates")
+}
+
+model SupplierSchedule {
+  id          String             @id @default(uuid()) @db.Uuid
+  supplierId  String             @map("supplier_id") @db.Uuid
+  airportId   String             @map("airport_id") @db.Uuid
+  daysOfWeek  Int[]              @map("days_of_week")
+  timeWindows Json               @map("time_windows")
+  capacity    Int                @default(10)
+  status      AvailabilityStatus @default(active)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([supplierId, airportId])
+  @@map("supplier_schedules")
+}
+
+// =============================================================================
+// Suppliers Domain
+// =============================================================================
+
+enum SupplierStatus {
+  pending
+  verified
+  suspended
+}
+
+enum SupplierDocumentType {
+  license
+  contract
+  insurance
+  other
+}
+
+enum SupplierDocumentStatus {
+  pending
+  approved
+  rejected
+}
+
+enum AssignmentMethod {
+  manual
+  rule_based
+}
+
+enum AssignmentStatus {
+  offered
+  accepted
+  rejected
+  reassigned
+}
+
+model Supplier {
+  id              String         @id @default(uuid()) @db.Uuid
+  name            String
+  legalName       String?        @map("legal_name")
+  status          SupplierStatus @default(pending)
+  countryCode     String?        @map("country_code") @db.Char(2)
+  rating          Decimal?       @db.Decimal(3, 2)
+  reliabilityScore Decimal?      @map("reliability_score") @db.Decimal(3, 2)
+  payoutCurrency  String?        @map("payout_currency") @db.VarChar(3)
+  notes           String?
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  contacts         SupplierContact[]
+  supplierAirports SupplierAirport[]
+  supplierServices SupplierService[]
+  coverages        SupplierCoverage[]
+  documents        SupplierDocument[]
+  slaMetrics       SupplierSlaMetrics[]
+  schedules        SupplierScheduleLink[]
+  bookings         Booking[]
+  assignments      BookingSupplierAssignment[]
+  settlementLines  SettlementLine[]
+  settlements      Settlement[]
+  apiKeys          ApiKey[]
+
+  @@index([status])
+  @@map("suppliers")
+}
+
+model SupplierContact {
+  id          String   @id @default(uuid()) @db.Uuid
+  supplierId  String   @map("supplier_id") @db.Uuid
+  name        String
+  role        String?
+  email       String?
+  phone       String?
+  whatsapp    String?
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+  @@map("supplier_contacts")
+}
+
+model SupplierAirport {
+  id         String   @id @default(uuid()) @db.Uuid
+  supplierId String   @map("supplier_id") @db.Uuid
+  airportId  String   @map("airport_id") @db.Uuid
+  status     AvailabilityStatus @default(active)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  airport  Airport  @relation(fields: [airportId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, airportId])
+  @@map("supplier_airports")
+}
+
+model SupplierService {
+  id         String   @id @default(uuid()) @db.Uuid
+  supplierId String   @map("supplier_id") @db.Uuid
+  serviceId  String   @map("service_id") @db.Uuid
+  status     AvailabilityStatus @default(active)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, serviceId])
+  @@map("supplier_services")
+}
+
+model SupplierCoverage {
+  id               String   @id @default(uuid()) @db.Uuid
+  supplierId       String   @map("supplier_id") @db.Uuid
+  airportServiceId String   @map("airport_service_id") @db.Uuid
+  status           AvailabilityStatus @default(active)
+  priority         Int      @default(0)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  supplier       Supplier       @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  airportService AirportService @relation(fields: [airportServiceId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, airportServiceId])
+  @@index([airportServiceId, status])
+  @@map("supplier_coverage")
+}
+
+model SupplierDocument {
+  id         String                 @id @default(uuid()) @db.Uuid
+  supplierId String                 @map("supplier_id") @db.Uuid
+  type       SupplierDocumentType
+  storageKey String                 @map("storage_key")
+  filename   String?
+  status     SupplierDocumentStatus @default(pending)
+  expiresAt  DateTime?              @map("expires_at") @db.Timestamptz
+  reviewedBy String?                @map("reviewed_by") @db.Uuid
+  reviewNote String?                @map("review_note")
+  createdAt  DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, status])
+  @@map("supplier_documents")
+}
+
+model SupplierSlaMetrics {
+  id                        String   @id @default(uuid()) @db.Uuid
+  supplierId                String   @map("supplier_id") @db.Uuid
+  periodStart               DateTime @map("period_start") @db.Date
+  periodEnd                 DateTime @map("period_end") @db.Date
+  responseTimeAvgMinutes    Decimal? @map("response_time_avg_minutes") @db.Decimal(8, 2)
+  confirmationSpeedAvgMinutes Decimal? @map("confirmation_speed_avg_minutes") @db.Decimal(8, 2)
+  cancellationRate          Decimal? @map("cancellation_rate") @db.Decimal(5, 4)
+  noShowRate                Decimal? @map("no_show_rate") @db.Decimal(5, 4)
+  complaintRate             Decimal? @map("complaint_rate") @db.Decimal(5, 4)
+  reliabilityScore          Decimal? @map("reliability_score") @db.Decimal(3, 2)
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, periodStart])
+  @@map("supplier_sla_metrics")
+}
+
+model SupplierScheduleLink {
+  id          String             @id @default(uuid()) @db.Uuid
+  supplierId  String             @map("supplier_id") @db.Uuid
+  airportId   String             @map("airport_id") @db.Uuid
+  daysOfWeek  Int[]              @map("days_of_week")
+  timeWindows Json               @map("time_windows")
+  capacity    Int                @default(10)
+  status      AvailabilityStatus @default(active)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  airport  Airport  @relation(fields: [airportId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, airportId])
+  @@map("supplier_schedule_links")
+}
+
+// =============================================================================
+// Search Domain
+// =============================================================================
+
+model SearchSynonym {
+  id        String   @id @default(uuid()) @db.Uuid
+  term      String
+  synonym   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([term, synonym])
+  @@map("search_synonyms")
+}
+
+// =============================================================================
+// Bookings Domain
+// =============================================================================
+
+enum BookingStatus {
+  draft
+  pending_payment
+  paid
+  pending_supplier_assignment
+  supplier_assigned
+  pending_supplier_confirmation
+  confirmed
+  in_progress
+  completed
+  cancelled
+  refunded
+  failed
+}
+
+enum BookingDirection {
+  arrival
+  departure
+  transit
+}
+
+enum PassengerType {
+  adult
+  child
+  infant
+}
+
+enum BookingSource {
+  homepage
+  airport_page
+  service_page
+  direct
+  api
+}
+
+enum NoteVisibility {
+  internal
+  customer
+}
+
+enum ActorType {
+  system
+  staff
+  supplier
+  customer
+}
+
+model Customer {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  phone        String?
+  whatsapp     String?
+  firstName    String?  @map("first_name")
+  lastName     String?  @map("last_name")
+  fullName     String?  @map("full_name")
+  passwordHash String?  @map("password_hash")
+  locale       String?  @db.VarChar(10)
+  isVip        Boolean  @default(false) @map("is_vip")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  bookings         Booking[]
+  corporateMembers CorporateMember[]
+
+  @@index([email])
+  @@map("customers")
+}
+
+model Booking {
+  id                 String          @id @default(uuid()) @db.Uuid
+  reference          String          @unique @db.VarChar(20)
+  customerId         String          @map("customer_id") @db.Uuid
+  airportServiceId   String          @map("airport_service_id") @db.Uuid
+  supplierId         String?         @map("supplier_id") @db.Uuid
+  corporateAccountId String?         @map("corporate_account_id") @db.Uuid
+  status             BookingStatus   @default(draft)
+  direction          BookingDirection
+  serviceDateTime    DateTime        @map("service_datetime") @db.Timestamptz
+  passengerCount     Int             @map("passenger_count")
+  specialRequests    String?         @map("special_requests")
+  locale             String?         @db.VarChar(10)
+  currency           String          @db.VarChar(3)
+  totalMinor         Int             @map("total_minor")
+  manageTokenHash    String?         @map("manage_token_hash")
+  manageTokenExpiresAt DateTime?     @map("manage_token_expires_at") @db.Timestamptz
+  source             BookingSource   @default(homepage)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  customer         Customer                    @relation(fields: [customerId], references: [id])
+  airportService   AirportService              @relation(fields: [airportServiceId], references: [id])
+  supplier         Supplier?                   @relation(fields: [supplierId], references: [id])
+  corporateAccount CorporateAccount?           @relation("CorporateBookings", fields: [corporateAccountId], references: [id])
+  passengers       BookingPassenger[]
+  flights          BookingFlight[]
+  priceSnapshot    BookingPriceSnapshot?
+  statusHistory    BookingStatusHistory[]
+  assignments      BookingSupplierAssignment[]
+  notes            BookingNote[]
+  events           BookingEvent[]
+  payments         Payment[]
+  refunds          Refund[]
+
+  @@index([status, serviceDateTime])
+  @@index([customerId])
+  @@index([airportServiceId])
+  @@index([supplierId])
+  @@index([corporateAccountId])
+  @@map("bookings")
+}
+
+model BookingPassenger {
+  id        String        @id @default(uuid()) @db.Uuid
+  bookingId String        @map("booking_id") @db.Uuid
+  fullName  String        @map("full_name")
+  type      PassengerType @default(adult)
+  notes     String?
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_passengers")
+}
+
+model BookingFlight {
+  id               String   @id @default(uuid()) @db.Uuid
+  bookingId        String   @map("booking_id") @db.Uuid
+  flightNumber     String   @map("flight_number") @db.VarChar(10)
+  airlineCode      String?  @map("airline_code") @db.VarChar(3)
+  scheduledTime    DateTime? @map("scheduled_time") @db.Timestamptz
+  terminal         String?
+  gate             String?
+  flightStatus     String?  @map("flight_status") @db.VarChar(30)
+  lastSyncedAt     DateTime? @map("last_synced_at") @db.Timestamptz
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_flights")
+}
+
+model BookingPriceSnapshot {
+  id                      String   @id @default(uuid()) @db.Uuid
+  bookingId               String   @unique @map("booking_id") @db.Uuid
+  basePriceMinor          Int      @map("base_price_minor")
+  supplierCostMinor       Int      @map("supplier_cost_minor")
+  markupMinor             Int      @map("markup_minor")
+  passengerAdjustmentMinor Int     @default(0) @map("passenger_adjustment_minor")
+  peakAdjustmentMinor     Int      @default(0) @map("peak_adjustment_minor")
+  discountMinor           Int      @default(0) @map("discount_minor")
+  taxEstimateMinor        Int      @default(0) @map("tax_estimate_minor")
+  totalMinor              Int      @map("total_minor")
+  marginMinor             Int      @map("margin_minor")
+  currency                String   @db.VarChar(3)
+  pricingRuleId           String?  @map("pricing_rule_id") @db.Uuid
+  promoCodeId             String?  @map("promo_code_id") @db.Uuid
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("booking_price_snapshots")
+}
+
+model BookingStatusHistory {
+  id         String     @id @default(uuid()) @db.Uuid
+  bookingId  String     @map("booking_id") @db.Uuid
+  fromStatus BookingStatus? @map("from_status")
+  toStatus   BookingStatus  @map("to_status")
+  actorType  ActorType  @map("actor_type") @default(system)
+  actorId    String?    @map("actor_id") @db.Uuid
+  reason     String?
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_status_history")
+}
+
+model BookingSupplierAssignment {
+  id             String           @id @default(uuid()) @db.Uuid
+  bookingId      String           @map("booking_id") @db.Uuid
+  supplierId     String           @map("supplier_id") @db.Uuid
+  assignedBy     String?          @map("assigned_by") @db.Uuid
+  assignmentMethod AssignmentMethod @map("assignment_method") @default(manual)
+  status         AssignmentStatus @default(offered)
+  offeredAt      DateTime         @default(now()) @map("offered_at") @db.Timestamptz
+  respondedAt    DateTime?        @map("responded_at") @db.Timestamptz
+  responseNote   String?          @map("response_note")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@index([bookingId])
+  @@index([supplierId])
+  @@map("booking_supplier_assignments")
+}
+
+model BookingNote {
+  id           String         @id @default(uuid()) @db.Uuid
+  bookingId    String         @map("booking_id") @db.Uuid
+  authorUserId String?        @map("author_user_id") @db.Uuid
+  body         String
+  visibility   NoteVisibility @default(internal)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_notes")
+}
+
+model BookingEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @map("booking_id") @db.Uuid
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, type])
+  @@map("booking_events")
+}
+
+// =============================================================================
+// Payments & Settlements Domain
+// =============================================================================
+
+enum PaymentStatus {
+  requires_payment
+  processing
+  succeeded
+  failed
+  refunded
+  partially_refunded
+}
+
+enum PaymentMethodType {
+  card
+  bank_transfer
+  wallet
+}
+
+enum TransactionType {
+  charge
+  refund
+  adjustment
+}
+
+enum WebhookProcessingStatus {
+  received
+  processed
+  failed
+}
+
+enum SettlementStatus {
+  draft
+  approved
+  paid
+}
+
+enum PayoutStatus {
+  pending
+  processing
+  paid
+  failed
+}
+
+model Payment {
+  id                   String            @id @default(uuid()) @db.Uuid
+  bookingId            String            @map("booking_id") @db.Uuid
+  stripePaymentIntentId String?          @unique @map("stripe_payment_intent_id")
+  amountMinor          Int               @map("amount_minor")
+  currency             String            @db.VarChar(3)
+  status               PaymentStatus     @default(requires_payment)
+  paymentMethodType    PaymentMethodType? @map("payment_method_type")
+  capturedAt           DateTime?         @map("captured_at") @db.Timestamptz
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  booking      Booking              @relation(fields: [bookingId], references: [id])
+  transactions PaymentTransaction[]
+  refunds      Refund[]
+
+  @@index([bookingId])
+  @@index([status])
+  @@map("payments")
+}
+
+model PaymentTransaction {
+  id             String          @id @default(uuid()) @db.Uuid
+  paymentId      String          @map("payment_id") @db.Uuid
+  type           TransactionType
+  amountMinor    Int             @map("amount_minor")
+  currency       String          @db.VarChar(3)
+  stripeObjectId String?         @map("stripe_object_id")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("payment_transactions")
+}
+
+model StripeWebhookEvent {
+  id               String                  @id @default(uuid()) @db.Uuid
+  stripeEventId    String                  @unique @map("stripe_event_id")
+  type             String
+  payload          Json
+  processingStatus WebhookProcessingStatus @default(received) @map("processing_status")
+  processedAt      DateTime?               @map("processed_at") @db.Timestamptz
+  error            String?
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([type])
+  @@index([processingStatus])
+  @@map("stripe_webhook_events")
+}
+
+model Settlement {
+  id             String           @id @default(uuid()) @db.Uuid
+  supplierId     String           @map("supplier_id") @db.Uuid
+  periodStart    DateTime         @map("period_start") @db.Date
+  periodEnd      DateTime         @map("period_end") @db.Date
+  status         SettlementStatus @default(draft)
+  grossMinor     Int              @map("gross_minor")
+  deductionsMinor Int             @default(0) @map("deductions_minor")
+  netPayableMinor Int             @map("net_payable_minor")
+  currency       String           @db.VarChar(3)
+  approvedBy     String?          @map("approved_by") @db.Uuid
+  paidAt         DateTime?        @map("paid_at") @db.Timestamptz
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  supplier Supplier         @relation(fields: [supplierId], references: [id])
+  lines    SettlementLine[]
+  payouts  Payout[]
+
+  @@index([supplierId, status])
+  @@map("settlements")
+}
+
+model SettlementLine {
+  id                   String   @id @default(uuid()) @db.Uuid
+  settlementId         String   @map("settlement_id") @db.Uuid
+  bookingId            String   @map("booking_id") @db.Uuid
+  supplierId           String   @map("supplier_id") @db.Uuid
+  supplierCostMinor    Int      @map("supplier_cost_minor")
+  refundAdjustmentMinor Int     @default(0) @map("refund_adjustment_minor")
+  penaltyMinor         Int      @default(0) @map("penalty_minor")
+  netMinor             Int      @map("net_minor")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  supplier   Supplier   @relation(fields: [supplierId], references: [id])
+
+  @@index([settlementId])
+  @@index([bookingId])
+  @@map("settlement_lines")
+}
+
+model Payout {
+  id                String       @id @default(uuid()) @db.Uuid
+  settlementId      String       @map("settlement_id") @db.Uuid
+  amountMinor       Int          @map("amount_minor")
+  currency          String       @db.VarChar(3)
+  method            String?
+  externalReference String?      @map("external_reference")
+  status            PayoutStatus @default(pending)
+  paidAt            DateTime?    @map("paid_at") @db.Timestamptz
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@index([settlementId, status])
+  @@map("payouts")
+}
+
+// =============================================================================
+// Refunds Domain
+// =============================================================================
+
+enum RefundType {
+  full
+  partial
+  none
+}
+
+enum RefundStatus {
+  requested
+  admin_approved
+  finance_approved
+  processing
+  completed
+  rejected
+}
+
+enum RefundRequestedBy {
+  customer
+  staff
+}
+
+model CancellationPolicy {
+  id                 String   @id @default(uuid()) @db.Uuid
+  scopeType          String   @map("scope_type") @db.VarChar(30)
+  scopeId            String?  @map("scope_id") @db.Uuid
+  windows            Json
+  supplierPenaltyRules Json?  @map("supplier_penalty_rules")
+  status             AvailabilityStatus @default(active)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([scopeType, scopeId])
+  @@map("cancellation_policies")
+}
+
+model Refund {
+  id                  String             @id @default(uuid()) @db.Uuid
+  bookingId           String             @map("booking_id") @db.Uuid
+  paymentId           String?            @map("payment_id") @db.Uuid
+  type                RefundType         @default(partial)
+  requestedAmountMinor Int               @map("requested_amount_minor")
+  approvedAmountMinor  Int?              @map("approved_amount_minor")
+  currency            String             @db.VarChar(3)
+  reason              String?
+  requestedBy         RefundRequestedBy  @map("requested_by") @default(customer)
+  policySnapshot      Json?              @map("policy_snapshot")
+  status              RefundStatus       @default(requested)
+  adminApprovedBy     String?            @map("admin_approved_by") @db.Uuid
+  financeApprovedBy   String?            @map("finance_approved_by") @db.Uuid
+  stripeRefundId      String?            @map("stripe_refund_id")
+  completedAt         DateTime?          @map("completed_at") @db.Timestamptz
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  booking       Booking               @relation(fields: [bookingId], references: [id])
+  payment       Payment?              @relation(fields: [paymentId], references: [id])
+  statusHistory RefundStatusHistory[]
+
+  @@index([bookingId])
+  @@index([status])
+  @@map("refunds")
+}
+
+model RefundStatusHistory {
+  id         String       @id @default(uuid()) @db.Uuid
+  refundId   String       @map("refund_id") @db.Uuid
+  fromStatus RefundStatus? @map("from_status")
+  toStatus   RefundStatus  @map("to_status")
+  actorId    String?      @map("actor_id") @db.Uuid
+  note       String?
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  refund Refund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+  @@index([refundId])
+  @@map("refund_status_history")
+}
+
+// =============================================================================
+// Incidents Domain
+// =============================================================================
+
+enum IncidentType {
+  flight_delay
+  supplier_no_show
+  passenger_no_show
+  wrong_terminal
+  communication_failure
+  payment_issue
+  service_complaint
+  other
+}
+
+enum IncidentSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+enum IncidentStatus {
+  created
+  assigned
+  in_progress
+  waiting_external
+  resolved
+  closed
+}
+
+enum IncidentTeam {
+  operations
+  support
+  finance
+  supplier_manager
+}
+
+model Incident {
+  id             String           @id @default(uuid()) @db.Uuid
+  bookingId      String?          @map("booking_id") @db.Uuid
+  supplierId     String?          @map("supplier_id") @db.Uuid
+  type           IncidentType
+  severity       IncidentSeverity @default(medium)
+  status         IncidentStatus   @default(created)
+  openedBy       String?          @map("opened_by") @db.Uuid
+  resolutionReason String?        @map("resolution_reason")
+  resolvedAt     DateTime?        @map("resolved_at") @db.Timestamptz
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  updates     IncidentUpdate[]
+  assignments IncidentAssignment[]
+
+  @@index([status, severity])
+  @@index([bookingId])
+  @@map("incidents")
+}
+
+model IncidentUpdate {
+  id           String   @id @default(uuid()) @db.Uuid
+  incidentId   String   @map("incident_id") @db.Uuid
+  authorUserId String?  @map("author_user_id") @db.Uuid
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("incident_updates")
+}
+
+model IncidentAssignment {
+  id             String       @id @default(uuid()) @db.Uuid
+  incidentId     String       @map("incident_id") @db.Uuid
+  assignedToUserId String?    @map("assigned_to_user_id") @db.Uuid
+  assignedTeam   IncidentTeam? @map("assigned_team")
+  assignedAt     DateTime     @default(now()) @map("assigned_at") @db.Timestamptz
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("incident_assignments")
+}
+
+// =============================================================================
+// Analytics Domain
+// =============================================================================
+
+model SearchEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String?  @map("session_id")
+  airportId String?  @map("airport_id") @db.Uuid
+  serviceId String?  @map("service_id") @db.Uuid
+  query     String?
+  filters   Json?
+  resultCount Int?   @map("result_count")
+  locale    String?  @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([createdAt])
+  @@index([airportId])
+  @@map("search_events")
+}
+
+model AnalyticsFunnelEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String?  @map("booking_id") @db.Uuid
+  sessionId String?  @map("session_id")
+  type      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([type, createdAt])
+  @@index([bookingId])
+  @@map("analytics_funnel_events")
+}
+
+model ConversionEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  sessionId  String?  @map("session_id")
+  type       String
+  pageId     String?  @map("page_id") @db.Uuid
+  valueMinor Int?     @map("value_minor")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([type, createdAt])
+  @@map("conversion_events")
+}
+
+// =============================================================================
+// Tax Domain
+// =============================================================================
+
+model TaxRate {
+  id          String    @id @default(uuid()) @db.Uuid
+  countryCode String    @map("country_code") @db.Char(2)
+  taxType     String    @map("tax_type") // 'vat', 'gst', 'sales_tax'
+  rate        Decimal   @db.Decimal(5, 4) // e.g. 0.2000 for 20% UK VAT
+  serviceType String?   @map("service_type") // null = all services
+  isActive    Boolean   @default(true) @map("is_active")
+  validFrom   DateTime  @map("valid_from") @db.Date
+  validUntil  DateTime? @map("valid_until") @db.Date
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([countryCode, isActive])
+  @@map("tax_rates")
+}
+
+// =============================================================================
+// Corporate Accounts Domain (T-073)
+// =============================================================================
+
+model CorporateAccount {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  legalName    String?  @map("legal_name")
+  vatNumber    String?  @map("vat_number")
+  billingEmail String   @map("billing_email")
+  creditLimit  Int?     @map("credit_limit") // minor units
+  paymentTerms Int      @default(30) @map("payment_terms") // days
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  members  CorporateMember[]
+  bookings Booking[]         @relation("CorporateBookings")
+
+  @@map("corporate_accounts")
+}
+
+model CorporateMember {
+  id          String   @id @default(uuid()) @db.Uuid
+  corporateId String   @map("corporate_id") @db.Uuid
+  customerId  String   @map("customer_id") @db.Uuid
+  role        String   @default("member") // admin, member
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  corporate CorporateAccount @relation(fields: [corporateId], references: [id], onDelete: Cascade)
+  customer  Customer         @relation(fields: [customerId], references: [id])
+
+  @@unique([corporateId, customerId])
+  @@map("corporate_members")
+}
+
+// =============================================================================
+// Public API / Developer Keys Domain (T-074)
+// =============================================================================
+
+model ApiKey {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String
+  keyHash    String    @unique @map("key_hash")
+  keyPrefix  String    @map("key_prefix") // e.g. "ap_live_Ab"
+  supplierId String?   @map("supplier_id") @db.Uuid
+  scopes     String[]  // ['search', 'bookings.read', 'bookings.write', 'pricing.read']
+  rateLimit  Int       @default(1000) @map("rate_limit") // requests per hour
+  status     String    @default("active")
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("api_keys")
+}

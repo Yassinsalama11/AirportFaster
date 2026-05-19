@@ -1,0 +1,136 @@
+AirportFaster — Development Sprint Plan
+
+Version: 1.0 · Last updated: 2026-05-14 · Status: Draft for founder review
+
+Document Purpose
+
+This plan turns the MVP scope into an ordered, sprint-by-sprint delivery sequence. It assumes a small senior team (or AI agents operating as one) and two-week sprints. The goal is a revenue-generating MVP: a customer can search, book, and pay for an airport service, and the admin team can run operations — all without developer intervention to launch a new airport.
+
+Guiding sequencing logic: foundation → revenue path → operational control → growth engine. Nothing fake ships in production flows; every sprint ends with working, tested, documented software.
+
+⸻
+
+Sprint 0 — Foundation (1 sprint)
+
+Goal: a deployable skeleton with the architecture decided in AGENTS.md.
+- Monorepo setup: apps/web, packages/api (Fastify modular monolith), packages/db (Prisma), packages/shared, packages/jobs.
+- PostgreSQL + Redis provisioned; dev/staging/prod environments; CI pipeline.
+- Prisma schema from the Database Architecture doc — Identity & Access, Airports, Services domains first; migrations + seed (roles, permissions, 3 services, settings).
+- Auth & RBAC module: staff login, sessions, role-permission enforcement middleware, audit_logs writing.
+- Sentry + PostHog wired. .env.example complete.
+Exit: a staff user can log in to an empty admin shell; CI is green; docs updated.
+
+⸻
+
+Sprint 1 — Dynamic Airports & CMS Core
+
+Goal: admin can create and publish an airport with zero developer involvement.
+- Airports module: CRUD, translations (en/ar), images (S3), airport_services join, status/publish.
+- CMS/SEO core: airport_seo, page generation data model, content_approval_workflow.
+- Admin dashboard: Airports module UI — add/edit airport, configure services per airport, SEO fields, preview, publish/unpublish.
+- Public site: Next.js shell, dynamic airport landing page route (SSG + ISR), airports directory.
+Exit: admin adds "Dubai International Airport", publishes it, and it appears live and indexable.
+
+⸻
+
+Sprint 2 — Pricing & Availability Engines
+
+Goal: a published airport-service has a real, configurable price and availability.
+- Pricing module: pricing_rules (both modes — fixed and cost+markup, D-008), currency_rates, rule precedence, quote function (pure, unit-tested).
+- Availability module: availability_rules, blackout_dates, cut-off/min-notice logic, availability function.
+- Admin UI: pricing setup and availability setup flows (per airport/service/supplier).
+- Suppliers module (data layer): suppliers, coverage tables, supplier CRUD in admin.
+Exit: a search query against an airport-service returns a correct price and availability status.
+
+⸻
+
+Sprint 3 — Search & Booking Flow (no payment yet)
+
+Goal: the customer journey works end-to-end up to checkout.
+- Search module: PostgreSQL full-text search, airport/service/IATA/city search, filters, availability- and pricing-aware results.
+- Public site: homepage with hero search, search results, service selection, booking details form, review step.
+- Bookings module: customers, bookings (Draft/Pending Payment), booking_passengers, booking_flights, booking_price_snapshots, booking_events/status_history.
+Exit: a customer can search, pick a service, enter details, and reach a checkout page showing a snapshotted price.
+
+⸻
+
+Sprint 4 — Stripe Checkout & Payment (revenue goes live)
+
+Goal: AirportFaster can take real money. This sprint makes the MVP monetisable.
+- Payments module: Stripe Payment Intents, multi-currency checkout, charge at checkout (D-007).
+- Stripe Webhooks module: signature validation, stripe_webhook_events persistence + idempotency, payment status driven by webhooks only.
+- Booking lifecycle: Pending Payment → Paid → Pending Supplier Assignment; booking reference + secure manage_token.
+- Confirmation page; booking_events timeline populated.
+Exit: a customer completes a real payment; booking is marked Paid via verified webhook; appears in admin.
+
+⸻
+
+Sprint 5 — Operations: Bookings, Suppliers, Manual Assignment
+
+Goal: the admin team can operate every booking.
+- Admin dashboard: Bookings module (list, filters, detail, timeline, notes, status management); Overview page widgets.
+- Manual supplier assignment: booking_supplier_assignments, assignment UI, status flow to Confirmed.
+- Suppliers module UI: profiles, coverage, documents, contacts.
+- Customers module: profiles, booking history, VIP tagging, notes.
+Exit: ops can take a paid booking, assign a supplier, mark it confirmed, and track it to completion.
+
+⸻
+
+Sprint 6 — Notifications, Refunds, Incidents
+
+Goal: close the operational loop.
+- Notifications module: templates, Redis queue, retry logic, delivery logs; email provider + WhatsApp Business API (A-002); booking confirmation, payment confirmation, supplier confirmation, reminder, review request.
+- Refunds module: refunds + history, cancellation_policies, admin → finance approval flow, Stripe refund + partial refund, customer notification.
+- Incidents module (basic): incidents, updates, assignments, severity; manual creation from a booking.
+- Manage Booking page: view, request modification/cancellation, contact support.
+Exit: full happy path + cancellation/refund path works with notifications; incidents can be logged.
+
+⸻
+
+Sprint 7 — SEO Depth & Programmatic Pages
+
+Goal: turn on the growth engine.
+- Programmatic SEO: airport+service pages, service pages, guide/FAQ page templates; schema_blocks, FAQ schema, breadcrumb schema, hreflang.
+- XML sitemap auto-generation + robots.txt; sitemap_logs; cache invalidation on publish.
+- Internal linking; direct-answer + FAQ + AI-summary blocks on all key pages.
+- Help center / FAQ pages; For Business page; service landing pages.
+Exit: published airports automatically generate full SEO/AEO/AGO-optimised page sets.
+
+⸻
+
+Sprint 8 — AI SEO & Translation Draft Systems
+
+Goal: scale content production without compromising quality.
+- AI SEO Engine: OpenAI integration, ai_prompt_templates (versioned), ai_generation_logs, draft generation for descriptions/metadata/FAQs/schema/summaries/guides.
+- AI Translation Engine: translation_jobs, AI draft → review → approve → publish, versioning, manual override.
+- Admin UI: review/edit/approve queues feeding content_approval_workflow. AI never auto-publishes (D-005).
+- Flight Data module: flight lookup + status, flight_data_cache, monitor jobs, delay notification.
+Exit: content team generates AI drafts, reviews, and publishes; bookings show live flight status.
+
+⸻
+
+Sprint 9 — Hardening & Launch Readiness
+
+Goal: production-grade quality.
+- Security pass: rate limiting, input validation audit, RBAC matrix verification, webhook security, manage-token security, audit-log coverage.
+- Analytics: search/booking/conversion event tracking, core admin reports (revenue by airport/service, conversion, refund rate).
+- Performance: Core Web Vitals, caching, query/index review.
+- QA: end-to-end tests across booking, payment, refund, publish flows; staging UAT.
+- Compliance: terms, privacy, cookie consent, data retention controls.
+Exit: MVP is launch-ready for the first airports.
+
+⸻
+
+Post-MVP Backlog (architecture-ready, not built)
+
+Supplier portal · customer accounts & membership · corporate accounts · public API marketplace · rule-based/automated supplier assignment · advanced/dynamic pricing AI · native mobile app · lounge-inventory integrations (A-006) · full tax engine (A-008) · advanced BI.
+
+⸻
+
+Sequencing Notes & Risks
+
+- Revenue is live at the end of Sprint 4 — earliest responsible point, since it depends on real airports, pricing, and the booking flow.
+- WhatsApp Business API approval (A-002) and flight data vendor selection (A-003) have external lead times — start procurement during Sprint 0–1.
+- Supplier contracting (A-004) is a business workstream that must run in parallel from Sprint 0; without suppliers, bookings cannot be fulfilled even though the software works.
+- Sprints 1–2 are the highest-risk engineering work (the dynamic, no-hardcoding requirement). Do not compress them.
+- Each sprint updates affected docs and DECISIONS.md per AGENTS.md §17.

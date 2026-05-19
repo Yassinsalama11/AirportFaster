@@ -1,0 +1,1490 @@
+AirportFaster — System Architecture Document
+
+Version: 1.1 · Last updated: 2026-05-14 · See "Document Review & Corrections" at end.
+
+Document Purpose
+
+This document defines the technical system architecture for AirportFaster based on the approved Product Architecture Definition, BRD, and UX/Product Flows.
+
+It translates business and UX requirements into an implementation-ready architecture covering:
+
+* Frontend architecture
+* Backend architecture
+* Core business services
+* Database domains
+* Authentication and permissions
+* Search and booking engine
+* Pricing and availability engine
+* Payments and refunds
+* Notifications
+* Flight data integration
+* SEO / AEO / AGO rendering strategy
+* Admin dashboard architecture
+* Security and scalability
+
+⸻
+
+1. Architecture Overview
+
+AirportFaster will be built as a modular web platform with a strong operational backend and SEO-first public frontend.
+
+Core Architecture Style
+
+Recommended initial architecture:
+
+Modular Monolith with clear domain boundaries.
+
+This is the best starting model because AirportFaster needs speed, control, and operational flexibility without the early complexity of microservices.
+
+The codebase should be structured so that services can later be extracted into independent services if scale requires it.
+
+⸻
+
+2. High-Level Platform Components
+
+1. Public Customer Website
+
+Used for:
+
+* SEO discovery
+* Airport browsing
+* Service education
+* Search
+* Booking
+* Checkout
+* Manage booking
+
+2. Admin Dashboard
+
+Used for:
+
+* Airport management
+* Booking operations
+* Supplier management
+* Finance
+* Incidents
+* CMS / SEO
+* Analytics
+* Settings
+
+3. Supplier Portal
+
+Future phase.
+
+Used for:
+
+* Booking confirmation
+* Availability updates
+* Pricing updates
+* Document upload
+* Invoice and settlement tracking
+
+4. Backend API
+
+Central application layer managing:
+
+* Business logic
+* Search
+* Booking
+* Pricing
+* Availability
+* Payments
+* Notifications
+* RBAC
+* Integrations
+
+5. Database
+
+PostgreSQL as the primary source of truth.
+
+6. External Integrations
+
+* Payment gateway
+* Email provider
+* WhatsApp provider
+* Flight data provider
+* Analytics tools
+* SEO indexing tools
+
+⸻
+
+3. Recommended Technology Stack
+
+Frontend
+
+Next.js
+
+Backend
+
+Node.js with Fastify or Express
+
+Preferred: Fastify for performance and structured backend architecture.
+
+Database
+
+PostgreSQL
+
+ORM
+
+Prisma or Drizzle ORM
+
+Recommended: Prisma for speed and admin-oriented development.
+
+Cache / Queue
+
+Redis for:
+
+* Caching
+* Background jobs
+* Notification queues
+* Search optimization
+* Rate limiting
+
+Search
+
+Initial:
+
+* PostgreSQL full-text search
+
+Future:
+
+* Meilisearch / Typesense / Elasticsearch
+
+Hosting
+
+Cloud VPS or managed cloud infrastructure.
+
+Recommended progression:
+
+* Phase 1: VPS / managed app platform
+* Phase 2: scalable cloud with managed PostgreSQL and Redis
+* Phase 3: containerized infrastructure
+
+⸻
+
+4. Frontend Architecture
+
+Frontend Applications
+
+The frontend should be divided into logical application zones:
+
+1. Public Website
+
+Routes:
+
+* Homepage
+* Airports directory
+* Airport landing pages
+* Service pages
+* Airport + service SEO pages
+* Blog / guides
+* Help center
+
+2. Booking Experience
+
+Routes:
+
+* Search results
+* Service selection
+* Booking details
+* Checkout
+* Confirmation
+* Manage booking
+
+3. Admin Dashboard
+
+Routes:
+
+* Overview
+* Bookings
+* Airports
+* Services
+* Suppliers
+* Customers
+* Operations
+* Incidents
+* Finance
+* CMS / SEO
+* Analytics
+* Settings
+
+4. Supplier Portal
+
+Future routes:
+
+* Supplier dashboard
+* Supplier bookings
+* Supplier pricing
+* Supplier availability
+* Supplier documents
+* Supplier invoices
+
+Internationalization foundation
+
+The web App Router is locale-prefixed with `next-intl`. Public and admin routes live under `app/[locale]` with MVP locales `en` and `ar`, default locale `en`, and an always-on locale prefix. The root locale layout sets `<html lang>` and `<html dir>` from the active locale so Arabic renders `rtl` even before full string translation. Locale message files live in `apps/web/messages/`; string translation is handled by the follow-up i18n tickets, not by the foundation layer.
+
+⸻
+
+5. Frontend Rendering Strategy
+
+Public SEO Pages
+
+Use server-side rendering and static generation where possible.
+
+Recommended:
+
+* Static generation for stable airport/service pages
+* Server-side rendering for dynamic search pages
+* Incremental regeneration after admin content updates
+
+Booking Pages
+
+Use server-side or client-side authenticated flows depending on payment and booking state.
+
+Admin Dashboard
+
+Authenticated client-side application with protected routes.
+
+⸻
+
+6. SEO / AEO / AGO Rendering Strategy
+
+Core Requirement
+
+AirportFaster must be discoverable by:
+
+* Google Search
+* Google AI Overviews
+* ChatGPT
+* Gemini
+* Claude
+* Perplexity
+* AI search engines
+* Voice assistants
+
+⸻
+
+SEO Technical Requirements
+
+The system must support:
+
+* Server-rendered pages
+* SEO-friendly URLs
+* Dynamic metadata
+* Canonical URLs
+* Open Graph tags
+* Twitter cards
+* Structured data
+* FAQ schema
+* Breadcrumb schema
+* Local business / service schema where relevant
+* XML sitemap generation
+* Robots.txt management
+* Internal linking
+* Multilingual hreflang
+
+⸻
+
+Programmatic SEO Architecture
+
+Dynamic templates required:
+
+Airport Page Template
+
+Example:
+
+* /airports/dubai-international-airport
+
+Airport + Service Page Template
+
+Example:
+
+* /airports/dubai-international-airport/fast-track
+
+Service Page Template
+
+Example:
+
+* /services/airport-fast-track
+
+Guide Page Template
+
+Example:
+
+* /guides/dubai-airport-fast-track-guide
+
+⸻
+
+AI Discoverability Content Structure
+
+Each important SEO page should include:
+
+* Direct answer block
+* Structured FAQs
+* Clear definitions
+* Service availability summary
+* Location-specific content
+* Process explanation
+* Trust indicators
+* Reviews
+* Related services
+* Related airports
+
+⸻
+
+7. Backend Architecture
+
+Backend Style
+
+The backend should be structured using domain-based modules.
+
+Each domain should contain:
+
+* Routes / controllers
+* Services
+* Validators
+* Database access layer
+* Events
+* Audit logs
+
+⸻
+
+8. Backend Domain Modules
+
+1. Auth & RBAC Module
+
+Responsibilities:
+
+* Admin authentication
+* Customer booking access links
+* Supplier authentication future
+* Role-based access control
+* Permissions
+* Sessions
+* Audit logs
+
+⸻
+
+2. Airports Module
+
+Responsibilities:
+
+* Add/edit airports
+* Airport activation/deactivation
+* IATA/ICAO data
+* City/country/timezone
+* Airport images
+* Airport translations
+* Airport SEO data
+* Airport publishing
+
+⸻
+
+3. Services Module
+
+Responsibilities:
+
+* Fast Track
+* Meet & Greet
+* Lounge Access
+* Service definitions
+* Service availability per airport
+* Service content
+* Service SEO data
+
+⸻
+
+4. Search Module
+
+Responsibilities:
+
+* Airport search
+* Service search
+* Availability-aware search
+* Multi-language search
+* Service result ranking
+* SEO landing page search links
+
+⸻
+
+5. Availability Module
+
+Responsibilities:
+
+* Supplier schedules
+* Airport operating rules
+* Service cut-off times
+* Blackout dates
+* Holiday rules
+* Capacity rules
+* Time-slot validation
+
+⸻
+
+6. Pricing Module
+
+Responsibilities:
+
+* Fixed prices
+* Supplier cost prices
+* Markups
+* Currency conversion
+* Passenger-based pricing
+* Airport-based pricing
+* Service-based pricing
+* Promo codes
+* Future dynamic pricing
+
+⸻
+
+7. Booking Module
+
+Responsibilities:
+
+* Booking creation
+* Booking lifecycle
+* Booking status management
+* Customer details
+* Passenger details
+* Flight details
+* Supplier assignment
+* Booking timeline
+* Booking modifications
+* Booking cancellation requests
+
+⸻
+
+8. Payments Module
+
+Responsibilities:
+
+* Payment intent creation
+* Payment confirmation
+* Refund processing
+* Payment reconciliation
+* Multi-currency checkout
+* Transaction logging
+
+⸻
+
+9. Suppliers Module
+
+Responsibilities:
+
+* Supplier profiles
+* Airport coverage
+* Service coverage
+* Supplier documents
+* Supplier pricing
+* Supplier availability
+* SLA tracking
+* Supplier ratings
+
+⸻
+
+10. Operations Module
+
+Responsibilities:
+
+* Live operations dashboard
+* Pending confirmations
+* Supplier coordination
+* Flight delay alerts
+* Operational task management
+* Internal notes
+
+⸻
+
+11. Incidents Module
+
+Responsibilities:
+
+* Incident creation
+* Severity levels
+* Escalation workflows
+* Incident assignment
+* Resolution tracking
+* Supplier accountability
+
+⸻
+
+12. Refunds & Cancellations Module
+
+Responsibilities:
+
+* Cancellation policy checks
+* Refund eligibility
+* Partial refunds
+* Finance approvals
+* Supplier payout adjustments
+
+⸻
+
+13. Notifications Module
+
+Responsibilities:
+
+* Email notifications
+* WhatsApp notifications
+* Notification templates
+* Reminder jobs
+* Delay alerts
+* Review requests
+
+⸻
+
+14. Flight Data Module
+
+Responsibilities:
+
+* Flight status lookup
+* Delay monitoring
+* Terminal updates
+* Airline data
+* Booking-linked flight tracking
+
+⸻
+
+15. CMS / SEO Module
+
+Responsibilities:
+
+* Airport page content
+* Service page content
+* Guide content
+* FAQ content
+* Metadata
+* Schema content
+* Multi-language content
+* Sitemap generation
+
+⸻
+
+16. Analytics Module
+
+Responsibilities:
+
+* Search analytics
+* Booking funnel analytics
+* Airport demand analytics
+* Revenue reports
+* Supplier performance
+* Customer behavior
+
+⸻
+
+17. Audit Log Module
+
+Responsibilities:
+
+* Record admin changes
+* Record booking changes
+* Record pricing changes
+* Record airport publishing changes
+* Record refund actions
+* Record permission-sensitive activity
+
+⸻
+
+9. Core Data Domains
+
+The database should be designed around the following primary domains.
+
+Identity & Access
+
+* users
+* roles
+* permissions
+* user_roles
+* sessions
+* audit_logs
+
+Airports
+
+* airports
+* airport_translations
+* airport_images
+* airport_services
+* airport_seo
+
+Services
+
+* services
+* service_translations
+* service_seo
+
+Suppliers
+
+* suppliers
+* supplier_contacts
+* supplier_airports
+* supplier_services
+* supplier_documents
+* supplier_sla_metrics
+
+Pricing
+
+* pricing_rules
+* currency_rates
+* promo_codes
+* service_price_overrides
+
+Availability
+
+* availability_rules
+* supplier_schedules
+* blackout_dates
+* capacity_rules
+
+Bookings
+
+* bookings
+* booking_passengers
+* booking_flights
+* booking_status_history
+* booking_notes
+* booking_supplier_assignments
+
+Payments
+
+* payments
+* payment_transactions
+* refunds
+* settlements
+
+Incidents
+
+* incidents
+* incident_updates
+* incident_assignments
+
+CMS / SEO
+
+* pages
+* page_translations
+* faqs
+* schema_blocks
+* blog_posts
+* internal_links
+
+Notifications
+
+* notification_templates
+* notification_logs
+* notification_queue
+
+Analytics
+
+* search_events
+* booking_events
+* conversion_events
+
+⸻
+
+10. Authentication & Authorization
+
+Admin Authentication
+
+Required for all admin dashboard access.
+
+Features:
+
+* Email/password login
+* Secure sessions
+* Password reset
+* Optional 2FA future
+
+⸻
+
+Customer Access
+
+Phase 1:
+
+* Guest checkout
+* Secure manage booking link
+* Booking reference + email access
+
+Future:
+
+* Customer account system
+* Saved traveler profiles
+* Membership accounts
+
+⸻
+
+Supplier Authentication
+
+Future phase:
+
+* Supplier portal login
+* Supplier role permissions
+* Supplier document access restrictions
+
+⸻
+
+11. RBAC Permission Model
+
+Required Roles
+
+Super Admin
+
+Full access.
+
+Operations
+
+Access to bookings, operations, incidents, suppliers limited view.
+
+Customer Support
+
+Access to customer communication, booking notes, manage requests.
+
+Finance
+
+Access to payments, refunds, settlements, finance reports.
+
+Supplier Manager
+
+Access to suppliers, documents, SLA, airport coverage.
+
+Content & SEO
+
+Access to CMS, airport content, service content, SEO fields.
+
+Analyst
+
+Read-only access to analytics and reports.
+
+⸻
+
+12. Booking Engine Architecture
+
+Booking Lifecycle
+
+Statuses:
+
+* Draft
+* Pending Payment
+* Paid
+* Pending Supplier Assignment
+* Supplier Assigned
+* Pending Supplier Confirmation
+* Confirmed
+* In Progress
+* Completed
+* Cancelled
+* Refunded
+* Failed / Incident
+
+⸻
+
+Booking Creation Flow
+
+Search → Select Service → Enter Details → Price Calculation → Payment Intent → Payment Success → Booking Created / Paid → Supplier Assignment → Confirmation → Delivery → Completion
+
+⸻
+
+Booking Timeline
+
+Every booking must maintain a timeline of important events:
+
+* Booking created
+* Payment completed
+* Supplier assigned
+* Supplier confirmed
+* Customer notified
+* Flight delay detected
+* Incident created
+* Booking completed
+* Refund processed
+
+⸻
+
+13. Search Engine Architecture
+
+Search Inputs
+
+* Airport
+* Service type
+* Date
+* Time
+* Passenger count
+* Arrival/departure/transit
+* Flight number optional
+
+⸻
+
+Search Process
+
+1. Normalize input
+2. Identify airport
+3. Identify available services
+4. Run availability check
+5. Run pricing calculation
+6. Rank results
+7. Return service cards
+
+⸻
+
+Search Result Data
+
+Each result should include:
+
+* Service name
+* Airport
+* Availability status
+* Price/from price
+* Cancellation summary
+* Estimated confirmation type
+* Trust indicator
+* CTA
+
+⸻
+
+14. Availability Engine Architecture
+
+Inputs
+
+* Airport ID
+* Service ID
+* Supplier ID optional
+* Date/time
+* Passenger count
+* Flight number optional
+
+⸻
+
+Availability Rules
+
+Availability should check:
+
+* Airport active status
+* Service active status
+* Supplier coverage
+* Supplier schedule
+* Cut-off time
+* Blackout dates
+* Capacity rules
+* Holiday restrictions
+
+⸻
+
+Output
+
+* Available
+* Limited availability
+* Unavailable
+* Requires manual confirmation
+
+⸻
+
+15. Pricing Engine Architecture
+
+Inputs
+
+* Airport
+* Service
+* Date/time
+* Passenger count
+* Supplier cost
+* Currency
+* Promo code
+
+⸻
+
+Pricing Logic
+
+Pricing calculation:
+
+1. Get base price
+2. Apply supplier cost if applicable
+3. Apply markup
+4. Apply passenger multiplier
+5. Apply peak-time adjustment if configured
+6. Apply promo code
+7. Convert display currency
+8. Return final customer price and margin estimate
+
+⸻
+
+Pricing Output
+
+* Customer price
+* Currency
+* Supplier cost
+* AirportFaster margin
+* Discount amount
+* Tax estimate future
+
+⸻
+
+16. Payment Architecture
+
+Payment Flow
+
+1. Customer reaches checkout
+2. Backend creates payment intent
+3. Customer completes payment
+4. Payment gateway confirms
+5. Booking marked as paid
+6. Booking timeline updated
+7. Notifications triggered
+8. Admin dashboard updated
+
+⸻
+
+Payment Requirements
+
+* Multi-currency support
+* Secure checkout
+* Payment transaction logs
+* Refund support
+* Reconciliation reports
+
+⸻
+
+17. Refund Architecture
+
+Refund Flow
+
+Refund request → Policy check → Admin review → Finance approval → Payment gateway refund → Customer notification → Supplier settlement adjustment
+
+⸻
+
+18. Supplier Assignment Architecture
+
+Phase 1
+
+Manual supplier assignment.
+
+Future
+
+Rule-based assignment.
+
+Assignment factors:
+
+* Airport coverage
+* Service coverage
+* Price
+* Availability
+* SLA score
+* Response speed
+* Historical quality
+
+⸻
+
+19. Incident Management Architecture
+
+Incident Sources
+
+* Admin
+* Customer request
+* Supplier issue
+* Flight delay
+* Payment issue
+* System alert
+
+⸻
+
+Severity Levels
+
+* Low
+* Medium
+* High
+* Critical
+
+⸻
+
+Incident Lifecycle
+
+Created → Assigned → In Progress → Waiting External Party → Resolved → Closed
+
+⸻
+
+20. Notification Architecture
+
+Notification Channels
+
+Phase 1
+
+* Email
+* WhatsApp
+
+Future
+
+* SMS
+* Push notifications
+* In-app notifications
+
+⸻
+
+Notification Types
+
+* Booking confirmation
+* Supplier confirmation
+* Payment confirmation
+* Booking reminder
+* Flight delay alert
+* Cancellation update
+* Refund update
+* Review request
+* Admin alert
+* Supplier request
+
+⸻
+
+Notification System Design
+
+Use queue-based background jobs.
+
+Recommended:
+
+* Redis queue
+* Template-based messages
+* Notification logs
+* Retry logic
+* Failure tracking
+
+⸻
+
+21. Flight Data Integration Architecture
+
+Required Capabilities
+
+* Flight lookup by flight number
+* Flight status monitoring
+* Delay detection
+* Terminal/gate updates where available
+* Airline identification
+
+⸻
+
+Integration Strategy
+
+Phase 1:
+
+* Manual flight number collection
+* API lookup for status
+
+Phase 2:
+
+* Automated monitoring jobs before service time
+* Delay-triggered notifications
+
+⸻
+
+22. Admin Dashboard Architecture
+
+Admin Dashboard Backend Needs
+
+Admin dashboard requires:
+
+* Aggregated operational queries
+* Role-based data access
+* Fast filtering
+* Export support
+* Activity logs
+* Internal notes
+* Status management
+
+⸻
+
+Admin Dashboard Main Data Views
+
+Bookings
+
+Operational command center.
+
+Airports
+
+Dynamic airport management.
+
+Suppliers
+
+Supplier network control.
+
+Finance
+
+Revenue, refunds, settlements.
+
+Incidents
+
+Escalation and issue management.
+
+CMS / SEO
+
+Content and discoverability management.
+
+Analytics
+
+Business intelligence.
+
+⸻
+
+23. Dynamic Airport Publishing Architecture
+
+Requirement
+
+Admin can add any airport and publish it live without developer intervention.
+
+⸻
+
+Publishing Flow
+
+Admin adds airport → Adds services → Configures pricing → Adds SEO content → Assigns suppliers → Preview → Publish → Page live → Airport searchable
+
+⸻
+
+Technical Requirements
+
+* Dynamic routes
+* Admin-controlled publish status
+* Sitemap auto-update
+* Search index update
+* SEO metadata generation
+* Multilingual content support
+* Cache invalidation after publish
+
+⸻
+
+24. CMS Architecture
+
+Content Types
+
+* Airport pages
+* Service pages
+* Airport + service pages
+* Guide articles
+* FAQs
+* Policy pages
+
+⸻
+
+CMS Requirements
+
+* Multi-language content
+* SEO metadata
+* Schema blocks
+* FAQ blocks
+* Draft/published states
+* Preview mode
+* Internal links
+* Canonical URLs
+
+⸻
+
+25. Analytics Architecture
+
+Event Tracking
+
+Track:
+
+* Page views
+* Airport searches
+* Service searches
+* Service selections
+* Checkout started
+* Payment completed
+* Booking completed
+* Manage booking actions
+* Cancellation requests
+* Refund requests
+
+⸻
+
+Business Reports
+
+* Revenue by airport
+* Revenue by service
+* Conversion rate by airport
+* Supplier performance
+* Refund rate
+* Incident rate
+* SEO landing page performance
+
+⸻
+
+26. Security Architecture
+
+Core Security Requirements
+
+* HTTPS everywhere
+* Secure authentication
+* Password hashing
+* RBAC enforcement
+* CSRF protection where applicable
+* Rate limiting
+* Input validation
+* SQL injection prevention via ORM
+* Secure payment handling
+* Audit logs
+* Admin action logs
+* Sensitive data access control
+
+⸻
+
+27. Compliance & Legal Architecture
+
+The platform must support:
+
+* Terms acceptance
+* Privacy policy
+* Refund/cancellation policy
+* Supplier terms
+* Data retention controls
+* GDPR-ready privacy practices
+* Cookie consent where required
+
+⸻
+
+28. Scalability Architecture
+
+Phase 1 Scalability
+
+* Modular monolith
+* PostgreSQL
+* Redis for queues/cache
+* CDN for assets
+* Server-side rendered SEO pages
+
+⸻
+
+Phase 2 Scalability
+
+* Dedicated worker processes
+* Search index service
+* Read replicas if needed
+* Better caching
+* Background job scaling
+
+⸻
+
+Phase 3 Scalability
+
+* Extract critical services if needed:
+    * Search service
+    * Notifications service
+    * Pricing service
+    * Booking service
+    * Analytics service
+
+⸻
+
+29. Infrastructure Architecture
+
+Recommended Environment Setup
+
+Environments
+
+* Development
+* Staging
+* Production
+
+⸻
+
+Required Infrastructure
+
+* Web app server
+* API server
+* PostgreSQL database
+* Redis
+* Object storage for images/documents
+* CDN
+* Email provider
+* WhatsApp provider
+* Payment gateway
+* Monitoring/logging
+
+⸻
+
+30. Monitoring & Observability
+
+The system should monitor:
+
+* API errors
+* Payment failures
+* Booking failures
+* Notification failures
+* Search latency
+* Page performance
+* Admin actions
+* Background job failures
+* Flight API failures
+
+Recommended tools:
+
+* Sentry for errors
+* PostHog or similar for product analytics
+* Uptime monitoring
+* Server logs
+
+⸻
+
+31. API Architecture Overview
+
+API groups:
+
+Public APIs
+
+* Search airports/services
+* Get airport page data
+* Get service page data
+* Create booking draft
+* Calculate price
+* Checkout/payment
+* Manage booking
+
+Admin APIs
+
+* Manage airports
+* Manage services
+* Manage bookings
+* Manage suppliers
+* Manage pricing
+* Manage availability
+* Manage incidents
+* Manage refunds
+* Manage CMS/SEO
+* View analytics
+
+Supplier APIs Future
+
+* View assigned bookings
+* Accept/reject booking
+* Update status
+* Manage availability
+* Upload documents
+
+⸻
+
+32. Background Jobs Architecture
+
+Required jobs:
+
+* Send notifications
+* Retry failed notifications
+* Monitor flight updates
+* Generate sitemap
+* Recalculate supplier SLA
+* Expire unpaid bookings
+* Send booking reminders
+* Send review requests
+* Update search index
+
+⸻
+
+33. File & Media Storage Architecture
+
+Storage required for:
+
+* Airport images
+* Supplier documents
+* CMS images
+* OG images
+* Invoices future
+
+Recommended:
+
+* Object storage such as S3-compatible storage
+* CDN delivery for public images
+* Private access for supplier documents
+
+⸻
+
+34. MVP Technical Scope
+
+Must Build in MVP
+
+Public Website
+
+* Homepage
+* Airports directory
+* Airport pages
+* Service pages
+* Airport + service pages
+* Booking flow
+* Checkout
+* Manage booking
+* FAQ/help pages
+
+Backend
+
+* Auth/RBAC
+* Airports module
+* Services module
+* Search module
+* Booking module
+* Pricing module
+* Availability module
+* Payments module
+* Notifications module
+* CMS/SEO module
+* Admin dashboard APIs
+
+Admin Dashboard
+
+* Overview
+* Bookings
+* Airports
+* Services
+* Suppliers
+* Customers
+* Finance basic
+* Incidents basic
+* CMS/SEO basic
+* Settings
+
+⸻
+
+35. Not in MVP
+
+* Native mobile app
+* Full supplier portal
+* Public API marketplace
+* Membership system
+* Corporate accounts
+* Advanced dynamic pricing
+* Automated supplier assignment
+* AI content automation
+* Advanced BI dashboards
+
+⸻
+
+36. Recommended Next Documents
+
+After this System Architecture Document, the next documents should be created in this order:
+
+1. Database Architecture & Entity Relationship Design
+2. API Specification
+3. UI Design System
+4. Development Sprint Plan
+5. QA Test Plan
+
+⸻
+
+37. Final Architecture Principle
+
+AirportFaster must be built as:
+
+A search-first, SEO-first, operations-first premium airport services platform.
+
+The system must allow the admin team to expand airport coverage, manage suppliers, control pricing, publish SEO pages, and operate bookings without developer intervention.
+
+⸻
+
+Document Review & Corrections (v1.1)
+
+Reviewed 2026-05-14. Architecture preserved; the following corrections apply and override earlier text where they conflict.
+
+1. Canonical backend modules (21). The module list in section 8 is extended to separate three modules that were previously folded in or omitted: Stripe Webhooks (distinct from Payments), AI SEO Engine, and AI Translation Engine. Full canonical list: Auth & RBAC, Airports, Services, Search, Availability, Pricing, Bookings, Payments, Stripe Webhooks, Suppliers, Operations, Incidents, Refunds, Notifications, Flight Data, CMS/SEO, AI SEO Engine, AI Translation Engine, Analytics, Audit Logs, Settings.
+
+2. AI draft systems ARE in MVP. Section 35 ("Not in MVP") is corrected: the AI SEO draft system and AI translation draft system are IN the MVP (draft-only; AI never auto-publishes; Draft → Review → Edit → Approve → Publish). Only fully automated AI operations / AI auto-publishing remain post-MVP. Section 34's MVP backend list is extended to include the AI SEO Engine and AI Translation Engine modules and the Stripe Webhooks module.
+
+3. Stack is now canonical, not optional. Backend = Fastify (not "Fastify or Express"). ORM = Prisma (not "Prisma or Drizzle"). These are binding decisions (DECISIONS.md D-003).
+
+4. Payment provider = Stripe. All "payment gateway" references mean Stripe. Payment state is driven exclusively by signature-validated webhook events; every event is persisted in stripe_webhook_events for idempotency and audit. AirportFaster is merchant of record (D-006); the customer is charged at checkout (D-007).
+
+5. Pricing engine. The engine supports two modes per airport/service: fixed price or supplier cost + markup (D-008). Pricing is snapshotted onto the booking at booking time. "Future dynamic pricing" = AI/algorithmic pricing only, post-MVP.
+
+6. Data domains. Section 9's data domains are now fully specified in the Database Architecture & Entity Relationship Design document, which adds the previously missing tables: stripe_webhook_events, settlements / settlement_lines / payouts (merchant-of-record), ai_generation_logs, translation_jobs, ai_prompt_templates, content_approval_workflow, sitemap_logs, and cancellation_policies. That document is the data-layer source of truth.
+
+7. Recommended next documents (section 36). "Database Architecture & Entity Relationship Design" is now complete. Remaining priority docs: API Specification, UI Design System, QA Test Plan. The Development Sprint Plan also now exists.

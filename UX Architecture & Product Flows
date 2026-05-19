@@ -1,0 +1,1376 @@
+AirportFaster — UX Architecture & Product Flows
+
+Version: 1.1 · Last updated: 2026-05-14 · See "Document Review & Corrections" at end.
+
+Document Purpose
+
+This document translates the AirportFaster business requirements into practical UX architecture, user journeys, page structure, product flows, and operational flows.
+
+It acts as the bridge between the BRD and the next phases:
+
+* UI/UX wireframes
+* System architecture
+* Database architecture
+* API architecture
+* Development planning
+
+⸻
+
+1. UX Principles
+
+Core UX Direction
+
+AirportFaster must feel:
+
+* Premium
+* Fast
+* Minimal
+* Trustworthy
+* Mobile-first
+* International
+* Airport-grade
+* Stress-free
+
+⸻
+
+Customer UX Promise
+
+The customer should feel:
+
+“I can book a premium airport experience in less than 2 minutes with confidence.”
+
+⸻
+
+Internal Operations UX Promise
+
+The operations team should feel:
+
+“Every booking, supplier, incident, payment, and customer action is visible, trackable, and controllable.”
+
+⸻
+
+2. Platform Areas
+
+AirportFaster UX is divided into four main areas:
+
+1. Public Website
+
+For discovery, SEO, airport pages, service education, and conversion.
+
+2. Booking Experience
+
+For search, service selection, checkout, confirmation, and booking management.
+
+3. Admin Dashboard
+
+For internal team operations, airport control, bookings, suppliers, finance, SEO, and analytics.
+
+4. Supplier Portal
+
+Future phase for supplier booking management, confirmations, pricing, documents, and settlements.
+
+⸻
+
+3. Public Website Sitemap
+
+Main Navigation
+
+Primary Navigation
+
+* Airports
+* Services
+* How It Works
+* For Business
+* Help
+
+Secondary Navigation
+
+* About AirportFaster
+* Contact
+* FAQs
+* Blog / Airport Guides
+* Manage Booking
+* Partner Login
+
+⸻
+
+Public Pages
+
+1. Homepage
+
+Purpose: Search-first conversion page.
+
+Sections:
+
+* Hero search module
+* Core value proposition
+* Featured airports
+* Services overview
+* How it works
+* Trust indicators
+* Reviews
+* Popular airport guides
+* FAQ
+* Final CTA
+
+Primary CTA:
+
+* Search Airport Services
+
+Secondary CTA:
+
+* Explore Airports
+
+⸻
+
+2. Airports Directory Page
+
+Purpose: Browse supported airports.
+
+Features:
+
+* Airport search
+* Country filter
+* City filter
+* Service filter
+* Featured airports
+* Active/inactive airport visibility controlled by admin
+
+Example URL:
+
+* /airports
+
+⸻
+
+3. Airport Landing Page
+
+Purpose: SEO + booking conversion for a specific airport.
+
+Dynamic page generated from admin.
+
+Sections:
+
+* Airport name and location
+* Available services
+* Search/booking widget
+* Service descriptions
+* Pricing teaser or “from price”
+* How the service works at this airport
+* FAQs
+* Reviews
+* Related services
+* Related airports
+* Trust indicators
+
+Example URLs:
+
+* /airports/dubai-international-airport
+* /airports/istanbul-airport
+* /airports/cairo-international-airport
+
+⸻
+
+4. Service Landing Pages
+
+Purpose: SEO and service education.
+
+Initial service pages:
+
+* Fast Track
+* Meet & Greet
+* Lounge Access
+
+Example URLs:
+
+* /services/airport-fast-track
+* /services/airport-meet-and-greet
+* /services/airport-lounge-access
+
+Sections:
+
+* Service explanation
+* Benefits
+* Who it is for
+* Supported airports
+* FAQs
+* Booking CTA
+
+⸻
+
+5. Airport + Service SEO Pages
+
+Purpose: Programmatic SEO and conversion.
+
+Generated dynamically from airport + service combinations.
+
+Examples:
+
+* /airports/dubai-international-airport/fast-track
+* /airports/heathrow-airport/meet-and-greet
+* /airports/istanbul-airport/lounge-access
+
+Sections:
+
+* Service-specific airport headline
+* Direct-answer content
+* Booking CTA
+* Pricing teaser
+* Process explanation
+* FAQs
+* Schema markup
+* Related airport services
+
+⸻
+
+6. Blog / Airport Guides
+
+Purpose: SEO, AEO, AGO, and AI discoverability.
+
+Content types:
+
+* Airport guides
+* Transit guides
+* Fast track explainers
+* Lounge comparisons
+* Family airport travel guides
+* Elderly travel assistance guides
+* Airport queue and waiting time content
+
+Example URLs:
+
+* /guides
+* /guides/dubai-airport-fast-track-guide
+* /guides/how-airport-meet-and-greet-works
+
+⸻
+
+7. Help Center / FAQs
+
+Purpose: Reduce support load and increase trust.
+
+Categories:
+
+* Booking
+* Payments
+* Refunds
+* Cancellations
+* Fast Track
+* Meet & Greet
+* Lounge Access
+* Flight delays
+* Supplier/service issues
+
+⸻
+
+8. Manage Booking Page
+
+Purpose: Allow customers to access booking details without full account creation.
+
+Access methods:
+
+* Booking reference + email
+* Secure booking link from email/WhatsApp
+
+Features:
+
+* View booking
+* Request modification
+* Request cancellation
+* Contact support
+* View service instructions
+
+⸻
+
+9. For Business Page
+
+Purpose: B2B lead generation.
+
+Target users:
+
+* Travel agencies
+* Hotels
+* Concierge companies
+* Corporate travel managers
+
+CTAs:
+
+* Become a Partner
+* Request B2B Access
+* Contact Sales
+
+⸻
+
+4. Customer Booking Experience Architecture
+
+Booking Experience Model
+
+AirportFaster must support a search-first booking experience.
+
+Primary booking route:
+Homepage / Airport page → Search → Service selection → Details → Checkout → Confirmation
+
+⸻
+
+5. Customer Flow 1 — Homepage to Booking
+
+Flow Steps
+
+Step 1: Customer lands on homepage
+
+Customer sees:
+
+* Search module
+* Premium value proposition
+* Trust indicators
+
+Step 2: Customer searches airport
+
+Inputs:
+
+* Airport / city / country
+* Service type optional
+* Date
+* Time
+* Passenger count
+
+Step 3: Search results display available services
+
+Customer sees:
+
+* Fast Track
+* Meet & Greet
+* Lounge Access
+* Service cards
+* Price indication
+* Availability status
+
+Step 4: Customer selects service
+
+Customer enters booking flow.
+
+Step 5: Customer fills service details
+
+Required details:
+
+* Passenger name
+* Email
+* Phone/WhatsApp
+* Flight number
+* Arrival/departure type
+* Date/time
+* Passenger count
+* Special requests
+
+Step 6: Customer reviews booking
+
+Customer sees:
+
+* Service summary
+* Airport
+* Date/time
+* Passenger count
+* Price
+* Cancellation policy
+
+Step 7: Customer pays
+
+Payment is processed securely.
+
+Step 8: Booking confirmation
+
+Customer receives:
+
+* Booking reference
+* Email confirmation
+* WhatsApp confirmation
+* Manage booking link
+
+Step 9: Operations workflow starts
+
+Booking appears in admin dashboard.
+Supplier assignment begins.
+
+⸻
+
+6. Customer Flow 2 — Airport Page to Booking
+
+Flow Steps
+
+Step 1: Customer lands on airport page via SEO
+
+Example: Dubai Airport Fast Track.
+
+Step 2: Customer reads direct-answer content
+
+Page explains:
+
+* Service availability
+* How it works
+* Who it is for
+* FAQs
+
+Step 3: Customer uses embedded booking widget
+
+Airport is pre-selected.
+Service may be pre-selected.
+
+Step 4: Customer completes booking
+
+Same checkout flow as homepage route.
+
+⸻
+
+7. Customer Flow 3 — Manage Booking
+
+Flow Steps
+
+Step 1: Customer opens manage booking link
+
+Access through email or WhatsApp.
+
+Step 2: Customer views booking details
+
+Displayed:
+
+* Booking status
+* Service details
+* Airport
+* Flight
+* Passenger details
+* Support contact
+
+Step 3: Customer can request action
+
+Available actions:
+
+* Modify date/time
+* Update flight number
+* Request cancellation
+* Contact support
+
+Step 4: Admin receives request
+
+Request appears in admin dashboard.
+
+Step 5: Customer receives update
+
+Notification sent by email/WhatsApp.
+
+⸻
+
+8. Booking Status Lifecycle
+
+Main Booking Statuses
+
+Draft
+
+Booking started but not completed.
+
+Pending Payment
+
+Customer reached checkout but payment not completed.
+
+Paid
+
+Payment completed.
+
+Pending Supplier Assignment
+
+Booking paid but supplier not yet assigned.
+
+Supplier Assigned
+
+Supplier selected internally.
+
+Pending Supplier Confirmation
+
+Supplier has been contacted but not confirmed.
+
+Confirmed
+
+Supplier confirmed service.
+
+In Progress
+
+Service is currently being delivered.
+
+Completed
+
+Service completed successfully.
+
+Cancelled
+
+Booking cancelled.
+
+Refunded
+
+Refund processed.
+
+Failed / Incident
+
+Operational issue occurred.
+
+⸻
+
+9. Admin Dashboard UX Architecture
+
+Admin Navigation
+
+Main Sections
+
+* Overview
+* Bookings
+* Airports
+* Services
+* Suppliers
+* Customers
+* Operations
+* Incidents
+* Finance
+* CMS / SEO
+* Analytics
+* Notifications
+* Settings
+
+⸻
+
+10. Admin Dashboard — Overview Page
+
+Purpose
+
+High-level operational control.
+
+Widgets:
+
+* Today’s bookings
+* Pending supplier confirmations
+* Active incidents
+* Revenue today/month
+* Top airports
+* Supplier alerts
+* Delayed flights
+* Refund requests
+* Pending content tasks
+
+⸻
+
+11. Admin Flow 1 — Add New Airport
+
+Purpose
+
+Allow full admin control over airport expansion without developer intervention.
+
+Flow Steps
+
+Step 1: Admin opens Airports module
+
+Admin clicks “Add Airport”.
+
+Step 2: Admin enters airport basic information
+
+Fields:
+
+* Airport name
+* IATA code
+* ICAO code
+* Country
+* City
+* Timezone
+* Airport status
+* Featured status
+
+Step 3: Admin adds airport content
+
+Fields:
+
+* Short description
+* Full description
+* Arrival instructions
+* Departure instructions
+* Transit instructions
+* Images
+
+Step 4: Admin configures services
+
+Admin selects available services:
+
+* Fast Track
+* Meet & Greet
+* Lounge Access
+
+For each service:
+
+* Active/inactive
+* Cut-off time
+* Availability rules
+* Price rules
+* Supplier options
+
+Step 5: Admin configures SEO
+
+Fields:
+
+* URL slug
+* Meta title
+* Meta description
+* Focus keywords
+* FAQs
+* Schema content
+* OG image
+* Canonical URL
+
+Step 6: Admin adds translations
+
+Languages:
+
+* English
+* Arabic
+
+Future:
+
+* Turkish
+* Russian
+* French
+* German
+
+Step 7: Admin assigns suppliers
+
+Admin maps supplier(s) to airport services.
+
+Step 8: Admin previews airport page
+
+Preview must show:
+
+* Public page
+* SEO snippet preview
+* Mobile preview
+
+Step 9: Admin publishes airport
+
+After publishing:
+
+* Airport appears on website
+* Airport becomes searchable
+* SEO page becomes live
+* Services become bookable
+
+⸻
+
+12. Admin Flow 2 — Manage Booking
+
+Flow Steps
+
+Step 1: Booking enters admin dashboard
+
+Booking appears after payment or inquiry.
+
+Step 2: Admin reviews booking details
+
+Admin sees:
+
+* Customer details
+* Airport
+* Service
+* Flight
+* Date/time
+* Payment status
+* Notes
+
+Step 3: Admin assigns supplier
+
+Options:
+
+* Manual supplier assignment
+* Recommended supplier based on SLA
+* Future auto-assignment
+
+Step 4: Supplier confirmation begins
+
+Admin contacts supplier or sends request.
+
+Step 5: Supplier confirms
+
+Booking status changes to confirmed.
+
+Step 6: Customer notified
+
+Email/WhatsApp confirmation sent.
+
+Step 7: Booking monitored until service delivery
+
+Admin monitors:
+
+* Flight delay
+* Customer updates
+* Supplier updates
+* Incident risks
+
+Step 8: Booking completed
+
+Status changes to completed.
+
+Step 9: Review request sent
+
+Customer receives review request.
+
+⸻
+
+13. Admin Flow 3 — Supplier Assignment
+
+Assignment Logic
+
+Initial phase:
+
+* Manual assignment by operations team
+
+Future phase:
+
+* Rule-based assignment
+* SLA-based assignment
+* Price-based assignment
+* Availability-based assignment
+
+⸻
+
+Manual Assignment Flow
+
+Booking created → Admin checks available suppliers → Admin selects supplier → Supplier receives request → Supplier confirms/rejects → Booking status updated
+
+⸻
+
+14. Admin Flow 4 — Pricing Setup
+
+Purpose
+
+Allow admin to configure pricing without developer intervention.
+
+Flow Steps
+
+Step 1: Admin opens pricing configuration
+
+Can access from:
+
+* Airport module
+* Service module
+* Supplier module
+
+Step 2: Admin defines pricing source
+
+Options:
+
+* Fixed AirportFaster price
+* Supplier cost + markup
+* Passenger-based pricing
+* Time-based pricing
+* Future dynamic pricing
+
+Step 3: Admin configures markup
+
+Markup options:
+
+* Fixed amount
+* Percentage
+* Airport-specific
+* Service-specific
+* B2B-specific future
+
+Step 4: Admin configures currency rules
+
+* Base currency
+* Display currencies
+* Conversion logic
+
+Step 5: Admin saves pricing rule
+
+Pricing becomes live for search and booking.
+
+⸻
+
+15. Admin Flow 5 — Availability Setup
+
+Flow Steps
+
+Step 1: Admin opens availability settings
+
+From airport/service/supplier profile.
+
+Step 2: Admin defines service operating rules
+
+Rules:
+
+* Days available
+* Time windows
+* Cut-off time
+* Minimum notice
+* Blackout dates
+* Holiday restrictions
+
+Step 3: Admin defines supplier availability
+
+* Supplier working hours
+* Supplier capacity
+* Supplier airport coverage
+
+Step 4: System validates search availability
+
+Unavailable services are hidden or marked unavailable.
+
+⸻
+
+16. Admin Flow 6 — Incident Management
+
+Incident Trigger Sources
+
+Incidents can be created by:
+
+* Admin team
+* Customer support
+* Supplier update
+* Flight delay detection
+* Customer request
+* Payment/refund issue
+
+⸻
+
+Incident Flow
+
+Step 1: Incident created
+
+Admin selects type:
+
+* Flight delay
+* Supplier no-show
+* Passenger no-show
+* Wrong terminal
+* Communication failure
+* Payment issue
+* Service complaint
+
+Step 2: Incident assigned
+
+Assigned to:
+
+* Operations
+* Customer support
+* Finance
+* Supplier manager
+
+Step 3: Incident severity set
+
+Levels:
+
+* Low
+* Medium
+* High
+* Critical
+
+Step 4: Resolution actions added
+
+Admin logs updates.
+
+Step 5: Customer/supplier notified if required
+
+Notifications sent by email/WhatsApp.
+
+Step 6: Incident resolved
+
+Resolution reason recorded.
+
+Step 7: Supplier SLA updated
+
+Incident affects supplier score if supplier-related.
+
+⸻
+
+17. Admin Flow 7 — Refund & Cancellation
+
+Flow Steps
+
+Step 1: Cancellation/refund request received
+
+Source:
+
+* Customer manage booking
+* Admin action
+* Support request
+
+Step 2: System checks policy
+
+Policy based on:
+
+* Airport
+* Service
+* Time before service
+* Supplier rules
+
+Step 3: Admin reviews refund eligibility
+
+Possible outcomes:
+
+* Full refund
+* Partial refund
+* No refund
+* Credit future option
+
+Step 4: Finance approves
+
+Finance confirms refund action.
+
+Step 5: Refund processed
+
+Payment gateway refund triggered.
+
+Step 6: Customer notified
+
+Email/WhatsApp update sent.
+
+Step 7: Supplier settlement updated
+
+Supplier payout adjusted.
+
+⸻
+
+18. Admin Flow 8 — CMS / SEO Publishing
+
+Flow Steps
+
+Step 1: Content team opens CMS/SEO module
+
+Step 2: Select content type
+
+Options:
+
+* Airport page
+* Service page
+* Airport + service page
+* Guide article
+* FAQ page
+
+Step 3: Add content
+
+Content supports:
+
+* English
+* Arabic
+* Future languages
+
+Step 4: Configure SEO
+
+Fields:
+
+* Meta title
+* Meta description
+* Focus keyword
+* URL slug
+* Schema type
+* FAQs
+* Internal links
+* OG image
+
+Step 5: AGO/AEO optimization
+
+Content must include:
+
+* Direct-answer blocks
+* FAQ blocks
+* Entity-rich content
+* Structured information
+* Clear definitions
+
+Step 6: Preview page
+
+Desktop/mobile/SEO preview.
+
+Step 7: Publish
+
+Page becomes live and indexable.
+
+⸻
+
+19. Supplier Portal UX Architecture (Future Phase)
+
+Supplier Navigation
+
+* Dashboard
+* Bookings
+* Availability
+* Pricing
+* Documents
+* Invoices
+* Support
+* Settings
+
+⸻
+
+Supplier Flow 1 — Booking Confirmation
+
+Booking request received → Supplier reviews details → Accept/reject → Status updates → Admin notified → Customer notified
+
+⸻
+
+Supplier Flow 2 — Pricing Update
+
+Supplier opens pricing → Updates rates → Admin approval required → Pricing becomes active after approval
+
+⸻
+
+Supplier Flow 3 — Document Upload
+
+Supplier uploads license/contract/document → Admin reviews → Approved/rejected → Supplier status updated
+
+⸻
+
+20. Notification Flows
+
+Customer Notifications
+
+Booking Confirmation
+
+Trigger: Payment successful.
+
+Supplier Confirmation
+
+Trigger: Supplier confirms service.
+
+Reminder
+
+Trigger: Before service time.
+
+Flight Delay Update
+
+Trigger: Flight data detects delay.
+
+Cancellation Update
+
+Trigger: Booking cancelled.
+
+Refund Update
+
+Trigger: Refund status changes.
+
+Review Request
+
+Trigger: Booking completed.
+
+⸻
+
+Admin Notifications
+
+Triggers:
+
+* New paid booking
+* Supplier rejection
+* Supplier timeout
+* Flight delay
+* Incident created
+* Refund requested
+* High-value booking
+* Pending confirmation
+
+⸻
+
+Supplier Notifications
+
+Triggers:
+
+* New booking request
+* Booking update
+* Flight delay
+* Cancellation
+* Document required
+
+⸻
+
+21. Search UX Architecture
+
+Search Entry Points
+
+Search can start from:
+
+* Homepage
+* Airport pages
+* Service pages
+* Blog guides
+* Manage booking upsell
+
+⸻
+
+Search Inputs
+
+Required:
+
+* Airport
+* Service type
+* Date
+* Time
+* Passenger count
+
+Optional:
+
+* Flight number
+* Arrival/departure/transit
+* Language preference
+* Special assistance request
+
+⸻
+
+Search Results UI
+
+Each service result card should show:
+
+* Service name
+* Short description
+* Benefits
+* Availability
+* Price/from price
+* Cancellation summary
+* Trust indicator
+* Select CTA
+
+⸻
+
+22. SEO / AEO / AGO UX Architecture
+
+Content UX Rules
+
+Pages should include:
+
+* Direct answer near the top
+* Clear service explanation
+* Structured FAQs
+* Location-based authority content
+* Schema markup-ready sections
+* Related internal links
+* Trust and review sections
+
+⸻
+
+AI Discoverability UX Rules
+
+Content must be structured so AI systems can understand:
+
+* What AirportFaster offers
+* Which airports are supported
+* Which services are available
+* How booking works
+* What customers should expect
+* Policies and limitations
+
+⸻
+
+23. Page Template Architecture
+
+Airport Page Template
+
+Components:
+
+* Hero section
+* Airport search/booking widget
+* Available services
+* How it works
+* Pricing teaser
+* FAQs
+* Reviews
+* Related airport services
+* Related airports
+
+⸻
+
+Service Page Template
+
+Components:
+
+* Hero
+* What is this service?
+* Benefits
+* Who needs it?
+* Supported airports
+* FAQs
+* CTA
+
+⸻
+
+Guide Page Template
+
+Components:
+
+* Direct answer block
+* Table of contents
+* Detailed guide content
+* FAQs
+* Related services
+* Booking CTA
+
+⸻
+
+24. Dashboard Component Architecture
+
+Shared Dashboard Components
+
+* Data tables
+* Status badges
+* Timeline component
+* Booking cards
+* Incident cards
+* Search filters
+* Export buttons
+* Notes panel
+* Activity logs
+* User role badges
+
+⸻
+
+25. Customer Component Architecture
+
+Shared Public Components
+
+* Airport search box
+* Service cards
+* Airport cards
+* FAQ accordion
+* Review cards
+* Pricing summary
+* Checkout summary
+* Trust badges
+* CTA blocks
+* Language switcher
+* Currency switcher
+
+⸻
+
+26. Key UX States
+
+Booking States
+
+* Loading
+* Available
+* Limited availability
+* Unavailable
+* Pending payment
+* Confirmed
+* Cancelled
+* Refunded
+* Incident active
+
+⸻
+
+Admin States
+
+* New
+* Pending action
+* Waiting supplier
+* Escalated
+* Resolved
+* Completed
+
+⸻
+
+27. MVP UX Scope
+
+Must Have
+
+Public Website
+
+* Homepage
+* Airports directory
+* Airport page
+* Service page
+* Booking flow
+* Checkout
+* Manage booking
+* Help/FAQ
+
+Admin Dashboard
+
+* Overview
+* Bookings
+* Airports
+* Services
+* Suppliers
+* Customers
+* Finance basic
+* Incidents basic
+* CMS/SEO basic
+* Settings
+
+Operational Flows
+
+* Add airport
+* Publish airport
+* Manage booking
+* Assign supplier
+* Confirm service
+* Process refund
+* Handle incident
+
+⸻
+
+Should Have
+
+* Reviews
+* Blog/guides
+* Advanced analytics
+* Supplier SLA scoring
+* Multi-language content management
+
+⸻
+
+Later
+
+* Supplier portal
+* API platform
+* Membership
+* Corporate accounts
+* Mobile app
+* Advanced automation
+
+⸻
+
+28. Next Step After This Document
+
+The next recommended document is:
+
+System Architecture Document
+
+It should define:
+
+* Backend modules
+* Database entities
+* API layers
+* Authentication
+* Search indexing
+* Notifications infrastructure
+* Payment flows
+* Flight data integration
+* SEO rendering strategy
+* Scalability model
+
+⸻
+
+29. Final UX Principle
+
+Every page and flow must support one of three goals:
+
+1. Help the customer book quickly and confidently.
+2. Help the operations team control every booking and supplier action.
+3. Help AirportFaster grow through SEO, AEO, and AI discoverability.
+
+If a feature does not support one of these goals, it should not be included in the MVP.
+
+⸻
+
+Document Review & Corrections (v1.1)
+
+Reviewed 2026-05-14. Flows and page architecture preserved; the following corrections apply.
+
+1. Canonical admin navigation. The admin dashboard navigation is: Overview, Bookings, Airports, Services, Suppliers, Customers, Operations, Incidents, Finance, Refunds, CMS / SEO, AI Engine (SEO & Translation review queues), Analytics, Notifications, Settings, Roles & Permissions. The list in section 9 is updated to include Refunds, AI Engine, and Roles & Permissions.
+
+2. Checkout flow reflects merchant-of-record + charge-at-checkout. In Customer Flow 1, "Step 7: Customer pays" captures the full payment immediately via Stripe (DECISIONS.md D-006, D-007). The booking moves Pending Payment → Paid → Pending Supplier Assignment. If a supplier later cannot fulfil, the Refund flow (Admin Flow 7) is triggered.
+
+3. AI review queues are MVP UX. Admin Flow 8 (CMS / SEO Publishing) is extended: AI-generated drafts (descriptions, metadata, FAQs, schema, summaries, guides) and AI translation drafts enter a review queue and follow Draft → Review → Edit → Approve → Publish. AI content never auto-publishes.
+
+4. Pricing setup UX (Admin Flow 14). "Pricing source" options are confirmed as: fixed AirportFaster price OR supplier cost + markup, selectable per airport/service (D-008). "Future dynamic pricing" remains a non-MVP placeholder.
+
+5. Roles. Seven roles including Analyst (read-only). Reflect in Settings → Roles & Permissions UX.
+
+6. Booking status lifecycle in section 8 is confirmed correct and matches the System Architecture and Database Architecture documents.

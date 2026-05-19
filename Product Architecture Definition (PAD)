@@ -1,0 +1,1342 @@
+AirportFaster — Product Architecture Definition (PAD)
+
+Version: 1.1 · Last updated: 2026-05-14 · See "Document Review & Corrections" at end.
+
+Project Overview
+
+Brand Name
+
+AirportFaster
+
+Domain
+
+airportfaster.com
+
+Brand Positioning
+
+AirportFaster is positioned as:
+
+A Global Premium Airport Experience Platform.
+
+The platform is not positioned as:
+
+* A tourism office
+* A transfer company
+* A traditional travel agency
+* A simple fast track booking website
+
+Instead, AirportFaster is designed to become:
+
+* A premium airport services marketplace
+* A travel infrastructure platform
+* A technology-enabled airport concierge ecosystem
+
+⸻
+
+Vision
+
+Long-Term Vision
+
+To become the leading global platform for premium airport services by aggregating airport assistance providers, lounges, concierge services, and airport-related premium experiences into a single unified ecosystem.
+
+⸻
+
+Initial Strategic Direction
+
+Business Model Strategy
+
+AirportFaster will initially operate as:
+
+Marketplace + Human-Assisted Operations
+
+Meaning:
+
+* Suppliers provide the services
+* AirportFaster owns the customer experience
+* AirportFaster manages operations and support
+* AirportFaster handles booking orchestration
+* AirportFaster standardizes quality and communication
+
+AirportFaster will NOT initially:
+
+* Operate airport staff directly
+* Employ airport agents in every airport
+* Build physical infrastructure
+
+⸻
+
+Initial Services Scope (Phase 1)
+
+The first release must remain highly focused.
+
+Services Included
+
+1. Fast Track
+
+Priority airport passage and queue skipping.
+
+2. Meet & Greet
+
+Airport assistance and escort services.
+
+3. Lounge Access
+
+Airport lounge booking and premium waiting experiences.
+
+⸻
+
+Services Excluded Initially
+
+The following services are intentionally postponed to avoid over-scoping:
+
+* Chauffeur services
+* Airport transfers
+* Porter booking
+* Visa assistance
+* Transit hotel booking
+* VIP terminals
+* eSIM marketplace
+* Insurance
+* Baggage delivery
+* Corporate travel management
+* Membership subscriptions
+* API marketplace
+* Mobile applications
+
+These are planned for future phases.
+
+⸻
+
+Core Customer Segments
+
+Primary Segment
+
+Premium Individual Travelers (B2C)
+
+Target users include:
+
+* GCC travelers
+* Families
+* Business travelers
+* Luxury travelers
+* Elderly travelers
+* Frequent flyers
+
+⸻
+
+Secondary Segment
+
+B2B Travel Partners
+
+Including:
+
+* Travel agencies
+* Hotels
+* Concierge companies
+* Luxury travel planners
+* Corporate travel coordinators
+
+⸻
+
+Market Positioning
+
+AirportFaster is positioned under:
+
+Premium Airport Hospitality & Travel Ancillary Services
+
+The brand focus is:
+
+* Convenience
+* Reduced travel stress
+* Luxury accessibility
+* Airport comfort
+* Time-saving
+* Premium experience
+
+⸻
+
+Branding Direction
+
+Brand Personality
+
+AirportFaster should feel:
+
+* Premium
+* Minimal
+* Elegant
+* Modern
+* Global
+* Aviation-inspired
+
+⸻
+
+Visual Direction
+
+Recommended Colors
+
+* Matte Black
+* Deep Navy
+* White
+* Champagne Gold accents
+
+⸻
+
+Design Style
+
+The product should visually feel similar to:
+
+* American Express Platinum
+* Emirates Business Class
+* Apple
+* Blacklane
+
+⸻
+
+Supported Languages
+
+Initial Languages
+
+1. English
+
+Primary platform language.
+
+2. Arabic
+
+RTL fully supported.
+
+⸻
+
+Future Languages
+
+* Turkish
+* Russian
+* French
+* German
+
+⸻
+
+Localization Requirements
+
+The platform must support:
+
+* RTL/LTR layouts
+* Currency localization
+* Airport localization
+* Multi-language SEO
+* Regional content adaptation
+
+⸻
+
+Supported Currencies
+
+Initial currencies:
+
+* USD
+* EUR
+* GBP
+* AED
+* SAR
+* EGP
+
+⸻
+
+Airport Management Strategy
+
+Centralized Airport Control
+
+AirportFaster must provide a fully centralized airport management system controlled by the admin dashboard.
+
+The admin team must have complete operational control over:
+
+* Adding new airports
+* Editing airport information
+* Activating/deactivating airports
+* Managing airport services
+* Managing airport SEO pages
+* Assigning suppliers per airport
+* Configuring airport pricing
+* Configuring supported services per airport
+* Managing airport visibility on the public website
+
+⸻
+
+Dynamic Airport Publishing
+
+When a new airport is added from the admin dashboard:
+
+* The airport must automatically appear on the website
+* Airport landing pages must auto-generate dynamically
+* Airport services must instantly become searchable
+* SEO metadata must be configurable
+* Multi-language content must be manageable
+
+The platform architecture must support scalable airport expansion without requiring developer intervention for every new airport.
+
+⸻
+
+Airport Entity Structure
+
+Each airport entity should support:
+
+* Airport name
+* IATA code
+* ICAO code
+* Country
+* City
+* Timezone
+* Airport description
+* Supported services
+* Service availability
+* Airport images
+* SEO metadata
+* Multi-language content
+* Supplier mapping
+* Featured status
+* Airport status (active/inactive)
+
+⸻
+
+Search & Booking Architecture
+
+Core Product Requirement
+
+The platform must function primarily as:
+
+A Search-First Booking Platform.
+
+This means the search and booking experience is considered the core customer journey.
+
+⸻
+
+Search Engine Requirements
+
+The booking search engine must support:
+
+* Airport search
+* Service search
+* Destination filtering
+* Date/time selection
+* Passenger count
+* Multi-service support
+* Multi-language search
+* Fast response times
+* Dynamic availability
+* SEO-friendly indexing
+
+⸻
+
+Booking Engine Requirements
+
+The booking system must support:
+
+* Real-time booking management
+* Dynamic pricing
+* Booking confirmations
+* Payment processing
+* Multi-currency checkout
+* Booking modifications
+* Cancellations
+* Refund workflows
+* Supplier assignment
+* Flight-linked bookings
+
+⸻
+
+Search Experience Goals
+
+The booking experience should feel:
+
+* Fast
+* Premium
+* Minimal
+* Stress-free
+* Mobile-first
+* Airline-grade
+
+The user should be able to:
+
+* Search quickly
+* Understand services instantly
+* Complete checkout with minimal friction
+* Receive instant confirmation
+
+⸻
+
+Search Infrastructure Principles
+
+The platform architecture must be designed for:
+
+* Scalability
+* Fast indexing
+* Dynamic airport expansion
+* SEO optimization
+* Multi-language compatibility
+* High performance globally
+
+⸻
+
+Product Structure
+
+The platform architecture is divided into 3 major systems.
+
+⸻
+
+1. Customer Platform
+
+Purpose
+
+Public-facing booking platform.
+
+⸻
+
+Main Components
+
+Website
+
+Marketing pages and airport landing pages.
+
+Airport Pages
+
+Dedicated SEO pages for each airport and service.
+
+Booking Flow
+
+Customer booking experience.
+
+Checkout
+
+Payment and booking confirmation.
+
+Booking Management
+
+View and manage existing bookings.
+
+WhatsApp Support Integration
+
+Human-assisted support.
+
+⸻
+
+MVP Features
+
+Homepage
+
+* Search functionality
+* Featured airports
+* Core services
+* Trust indicators
+
+Airport Landing Pages
+
+* Airport overview
+* Services available
+* FAQs
+* SEO content
+* Reviews
+* Booking CTA
+
+Booking Form
+
+Fields include:
+
+* Airport
+* Flight number
+* Date/time
+* Passenger count
+* Service type
+* Contact details
+
+Checkout
+
+* Pricing
+* Currency selection
+* Payment collection
+* Booking confirmation
+
+Customer Notifications
+
+* Email confirmations
+* WhatsApp notifications
+
+⸻
+
+2. Admin Dashboard
+
+Purpose
+
+Operational control center for AirportFaster.
+
+This is considered the heart of the platform.
+
+⸻
+
+Core Dashboard Modules
+
+Bookings Module
+
+Features:
+
+* Booking statuses
+* Timeline
+* Passenger details
+* Service type
+* Airport details
+* Supplier assignment
+* Notes
+* Escalation handling
+
+⸻
+
+Suppliers Module
+
+Features:
+
+* Supplier profiles
+* Airports covered
+* Services provided
+* Availability
+* SLA management
+* Ratings
+* Contracts
+* Documents
+
+⸻
+
+Operations Module
+
+Features:
+
+* Live bookings
+* Delayed flights
+* Flight monitoring
+* Escalations
+* Support management
+* Manual coordination
+
+⸻
+
+Customers Module
+
+Features:
+
+* Customer profiles
+* Booking history
+* VIP tags
+* Notes
+* Complaints
+* Support history
+
+⸻
+
+Finance Module
+
+Features:
+
+* Margins
+* Refunds
+* Supplier payouts
+* Revenue tracking
+* Currency management
+* Financial reporting
+
+⸻
+
+Content & SEO Module
+
+Features:
+
+* Airport pages management
+* Multi-language content
+* SEO metadata
+* Blog/content publishing
+
+⸻
+
+Analytics Module
+
+Features:
+
+* Booking analytics
+* Revenue analytics
+* Airport performance
+* Supplier performance
+* Conversion analytics
+
+⸻
+
+3. Supplier Dashboard (Future Phase)
+
+Initial Strategy
+
+Supplier operations will initially be handled manually.
+
+Communication methods:
+
+* WhatsApp
+* Email
+* Manual confirmations
+
+⸻
+
+Future Supplier Portal Features
+
+Booking Management
+
+* Accept/reject bookings
+* Availability updates
+* Service status updates
+
+Pricing Management
+
+* Rates
+* Airport pricing
+* Dynamic updates
+
+Finance
+
+* Invoices
+* Payout tracking
+* Settlement reports
+
+Documents
+
+* Licensing
+* Agreements
+* Verification files
+
+⸻
+
+Operational Model
+
+Initial Operations Strategy
+
+AirportFaster will initially operate with:
+
+* Human-assisted coordination
+* Manual supplier confirmations
+* Manual escalation handling
+* Centralized support
+
+Automation will be introduced gradually.
+
+⸻
+
+Technology Architecture
+
+Initial Tech Stack
+
+Frontend
+
+Next.js
+
+Backend
+
+Node.js (Fastify or Express)
+
+Database
+
+PostgreSQL
+
+Hosting
+
+Cloud-based scalable infrastructure.
+
+⸻
+
+Initial Technical Priorities
+
+Priority order:
+
+1. Customer booking experience
+2. Admin operations dashboard
+3. Notifications system
+4. Payment infrastructure
+5. SEO architecture
+6. Supplier management
+7. Flight monitoring
+
+⸻
+
+Mobile Applications
+
+Initial Decision
+
+No native mobile app in Phase 1.
+
+Reasoning:
+
+* Faster launch
+* Lower cost
+* Better SEO
+* Easier iteration
+* Faster validation
+
+⸻
+
+Initial Platform Strategy
+
+Responsive web application only.
+
+⸻
+
+Authentication Strategy
+
+Phase 1
+
+Guest checkout supported.
+
+Users can:
+
+* Book without account creation
+* Manage bookings via secure booking links
+
+⸻
+
+Future Phase
+
+Customer accounts:
+
+* Saved bookings
+* Membership
+* Loyalty
+* Faster checkout
+
+⸻
+
+Notifications Infrastructure
+
+Initial Channels
+
+Email
+
+Booking confirmations and updates.
+
+WhatsApp
+
+Primary communication channel.
+
+⸻
+
+Future Channels
+
+* SMS
+* Push notifications
+* In-app messaging
+
+⸻
+
+Flight Tracking
+
+Importance
+
+Flight tracking is considered a core operational requirement.
+
+⸻
+
+Usage
+
+* Delay monitoring
+* Schedule updates
+* Supplier coordination
+* Customer notifications
+
+⸻
+
+Marketing Direction
+
+Core Marketing Positioning
+
+AirportFaster will market:
+
+* Reduced airport stress
+* VIP travel experience
+* Convenience
+* Time-saving
+* Luxury accessibility
+
+NOT technical airport terminology.
+
+⸻
+
+Primary Marketing Angles
+
+Skip The Chaos
+
+Airport queue avoidance.
+
+Family Travel Convenience
+
+Stress-free airport handling.
+
+Elderly Assistance
+
+Airport comfort and support.
+
+Luxury Without Private Jet
+
+Affordable premium travel experiences.
+
+⸻
+
+Primary Marketing Channels
+
+1. TikTok & Reels
+
+Visual airport experience content.
+
+2. SEO
+
+Airport-specific landing pages.
+
+3. Partnerships
+
+Hotels, travel agencies, concierge companies.
+
+4. Influencer Marketing
+
+Luxury, family, and travel creators.
+
+⸻
+
+SEO Strategy
+
+Structure
+
+Airport-by-airport domination strategy.
+
+⸻
+
+Initial Airport Priorities
+
+1. Dubai International Airport
+
+2. Istanbul Airport
+
+3. Cairo International Airport
+
+4. King Abdulaziz International Airport
+
+5. Heathrow Airport
+
+⸻
+
+Marketplace Strategy
+
+Marketplace Type
+
+Booking-first marketplace.
+
+Meaning:
+
+* Customers can directly book services
+* AirportFaster controls the customer journey
+* Supply aggregation happens behind the scenes
+
+⸻
+
+Revenue Model
+
+Phase 1 Revenue
+
+Commission Per Booking
+
+Primary revenue source.
+
+⸻
+
+Future Revenue Streams
+
+* Membership subscriptions
+* API access
+* White-label partnerships
+* Corporate plans
+* Featured supplier placements
+
+⸻
+
+KPIs
+
+Commercial KPIs
+
+* Bookings per day
+* Margin per booking
+* CAC
+* Repeat rate
+* Upsell rate
+
+⸻
+
+Operational KPIs
+
+* Confirmation speed
+* Supplier response time
+* No-show rate
+* Complaint rate
+
+⸻
+
+Marketing KPIs
+
+* Landing page conversion rate
+* Cost per lead
+* Organic traffic growth
+* WhatsApp conversion rate
+
+⸻
+
+Product Development Phases
+
+Phase 1 — MVP
+
+Includes
+
+* Customer website
+* Airport pages
+* Booking flow
+* Checkout
+* Admin dashboard
+* Manual supplier operations
+* Email + WhatsApp notifications
+
+⸻
+
+Phase 2 — Operational Expansion
+
+Includes
+
+* Supplier portal
+* More airports
+* More services
+* Better automation
+* Customer accounts
+* CRM improvements
+
+⸻
+
+Phase 3 — Infrastructure Platform
+
+Includes
+
+* API platform
+* Membership system
+* Corporate solutions
+* White-label partnerships
+* Dynamic pricing
+* Advanced automation
+
+⸻
+
+Future Expansion Opportunities
+
+Potential future services:
+
+* Chauffeur services
+* Airport transfers
+* VIP terminals
+* Porter booking
+* eSIM marketplace
+* Travel insurance
+* Baggage delivery
+* Airport concierge subscriptions
+* Corporate airport solutions
+
+⸻
+
+Availability Engine Architecture
+
+Core Requirement
+
+AirportFaster must include a centralized availability engine.
+
+This engine controls:
+
+* Service availability
+* Supplier schedules
+* Airport operational hours
+* Booking cut-off rules
+* Peak-time restrictions
+* Holiday restrictions
+* Flight-dependent service availability
+
+⸻
+
+Availability Logic
+
+The platform must support:
+
+* Manual confirmation workflows
+* Future automated confirmations
+* Time-slot validation
+* Airport-specific operating rules
+* Service-based availability conditions
+
+⸻
+
+Pricing Engine Architecture
+
+Core Requirement
+
+AirportFaster must include a flexible pricing engine.
+
+⸻
+
+Pricing Components
+
+The engine should support:
+
+* Fixed pricing
+* Supplier-based pricing
+* Dynamic markups
+* Currency conversion
+* Airport-specific pricing
+* Service-specific pricing
+* Passenger-based pricing
+* Peak-time pricing
+* Promo codes
+* Future B2B pricing structures
+
+⸻
+
+Supplier SLA System
+
+Core Requirement
+
+Supplier quality management is considered critical infrastructure.
+
+⸻
+
+SLA Metrics
+
+The system must track:
+
+* Response time
+* Confirmation speed
+* Cancellation rate
+* No-show rate
+* Complaint rate
+* Reliability score
+* Operational consistency
+
+⸻
+
+Roles & Permissions System
+
+Core Requirement
+
+The platform must support enterprise-grade role-based access control (RBAC).
+
+⸻
+
+Initial Roles
+
+Super Admin
+
+Full system access.
+
+Operations Team
+
+Booking and escalation management.
+
+Customer Support Team
+
+Customer communication and support.
+
+Finance Team
+
+Payments, refunds, settlements.
+
+Supplier Managers
+
+Supplier onboarding and management.
+
+Content & SEO Team
+
+Airport pages and SEO management.
+
+⸻
+
+Dynamic CMS & SEO Architecture
+
+Core Requirement
+
+AirportFaster must include a scalable dynamic content management system.
+
+⸻
+
+CMS Features
+
+The system should support:
+
+* Dynamic airport pages
+* Dynamic service pages
+* Multi-language content
+* SEO metadata management
+* Dynamic FAQs
+* Structured data management
+* Internal linking
+* Programmatic SEO architecture
+* AI-generated content workflows (future)
+
+⸻
+
+SEO & AGO Strategy
+
+Core Requirement
+
+SEO and AI-driven discoverability are considered strategic growth pillars.
+
+AirportFaster must be architected from day one for:
+
+* SEO (Search Engine Optimization)
+* AEO (Answer Engine Optimization)
+* AGO (AI Generative Optimization)
+
+⸻
+
+Strategic Objective
+
+AirportFaster should become highly discoverable across:
+
+* Google Search
+* Google AI Overviews
+* ChatGPT
+* Gemini
+* Claude
+* Perplexity
+* AI search engines
+* Voice assistants
+* Future AI answer engines
+
+⸻
+
+SEO Architecture Requirements
+
+The platform must support:
+
+* Programmatic SEO
+* Airport-by-airport landing pages
+* Multi-language SEO
+* Structured schema markup
+* FAQ schema
+* Rich snippets
+* Internal linking strategy
+* Crawl optimization
+* Fast page speed
+* Core Web Vitals optimization
+* SEO-friendly URLs
+* Dynamic metadata generation
+
+⸻
+
+AGO / AEO Requirements
+
+The platform content strategy should support:
+
+* AI-readable structured content
+* Direct-answer formatting
+* Conversational search optimization
+* Semantic search optimization
+* Entity-based content architecture
+* Trust and authority signals
+* FAQ-heavy content structures
+* Location authority pages
+* Airport knowledge content
+
+⸻
+
+Content Expansion Strategy
+
+AirportFaster should eventually include:
+
+* Airport guides
+* Transit guides
+* Lounge comparisons
+* Fast track explainers
+* Family travel content
+* Airport wait-time content
+* Travel tips
+* Airport assistance knowledge base
+
+⸻
+
+Reviews & Trust System
+
+Features
+
+The platform should support:
+
+* Verified customer reviews
+* Supplier ratings
+* Booking-based review validation
+* Trust indicators
+* Quality scoring
+
+⸻
+
+Incident Management System
+
+Purpose
+
+Operational incident handling is considered mission-critical.
+
+⸻
+
+Incident Types
+
+The system should support:
+
+* Flight delays
+* Supplier no-shows
+* Passenger no-shows
+* Wrong terminal incidents
+* Late arrivals
+* Communication failures
+* Escalation cases
+
+⸻
+
+Features
+
+* Incident logging
+* Escalation workflows
+* Internal ticketing
+* Resolution tracking
+* Supplier accountability
+
+⸻
+
+Refund & Cancellation System
+
+Core Requirement
+
+The platform must support configurable refund and cancellation policies.
+
+⸻
+
+Features
+
+* Airport-based policies
+* Service-based policies
+* Time-based cancellation windows
+* Partial refunds
+* Supplier penalties
+* Refund tracking
+
+⸻
+
+Payment Infrastructure
+
+Features
+
+The platform should support:
+
+* Multi-currency payments
+* Secure checkout
+* Refund handling
+* Supplier settlements
+* Tax handling
+* Payment reconciliation
+* Future wallet systems
+
+⸻
+
+Flight Data Integration
+
+Core Requirement
+
+AirportFaster must integrate with flight data providers.
+
+⸻
+
+Features
+
+* Flight status tracking
+* Delay monitoring
+* Terminal updates
+* Airline data
+* Real-time flight synchronization
+
+⸻
+
+Analytics & Tracking Infrastructure
+
+Features
+
+The platform should track:
+
+* Search behavior
+* Conversion funnels
+* Airport demand
+* Booking analytics
+* Revenue analytics
+* Supplier performance
+* Customer behavior
+
+⸻
+
+Notification Templates System
+
+Features
+
+Dynamic notifications for:
+
+* Booking confirmations
+* Payment confirmations
+* Flight delays
+* Reminders
+* Supplier updates
+* Refund notifications
+* Cancellations
+
+⸻
+
+Airport Rollout Strategy
+
+Airport Expansion Criteria
+
+New airports should be prioritized based on:
+
+* Search demand
+* Tourism volume
+* GCC traveler traffic
+* Supplier availability
+* SEO opportunity
+* Operational feasibility
+* Airport congestion levels
+
+⸻
+
+Final Strategic Principle
+
+AirportFaster must always feel like:
+
+A global premium airport technology platform.
+
+NOT:
+
+* A tourism company
+* A local airport service provider
+* A travel agency
+* A concierge office
+
+The product, branding, UX, operations, and technology must consistently reinforce this positioning.
+
+⸻
+
+Document Review & Corrections (v1.1)
+
+Reviewed 2026-05-14 against the BRD, UX Architecture, System Architecture, Database Architecture, and project instructions. Strategic content preserved; the following clarifications and corrections apply and override earlier text where they conflict.
+
+1. "Dynamic pricing" clarification. Where this document lists "Dynamic pricing" under the Booking Engine, it means admin-configurable pricing rules (fixed price or supplier cost + markup, configurable per airport/service — see DECISIONS.md D-008). It does NOT mean AI/algorithmic dynamic pricing, which is explicitly post-MVP.
+
+2. Payment provider is Stripe. Wherever a generic "payment gateway" is referenced, the canonical provider for MVP is Stripe (Payment Intents, webhooks, multi-currency, refunds/partial refunds). See DECISIONS.md D-001.
+
+3. Commercial model. AirportFaster operates as merchant of record: it collects the full customer payment and settles suppliers separately (DECISIONS.md D-006). The customer is charged at checkout (D-007).
+
+4. Roles. The canonical role set is seven: Super Admin, Operations, Customer Support, Finance, Supplier Manager, Content & SEO, Analyst. Earlier lists in this document that omit "Analyst" are superseded.
+
+5. AI content. AI-assisted SEO and translation draft systems ARE in MVP scope (draft-only, never auto-publish; Draft → Review → Edit → Approve → Publish). "AI-generated content workflows (future)" in the CMS section is updated: the draft workflow is MVP; only fully automated AI operations are post-MVP.
+
+6. Tech stack specifics. Canonical choices: backend = Fastify; ORM = Prisma. "Express" and "Drizzle" alternatives in this document are non-canonical.
+
+7. The complete, current architecture is captured across AGENTS.md, the System Architecture Document, and the Database Architecture & Entity Relationship Design. This PAD remains the source of truth for brand, vision, positioning, and business strategy.

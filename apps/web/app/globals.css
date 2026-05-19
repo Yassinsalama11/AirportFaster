@@ -1,0 +1,272 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens — LIGHT FIRST (marketplace 2026) ────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* Surface */
+  --bg: 250 250 247;          /* #FAFAF7 — cream */
+  --surface: 255 255 255;     /* white cards */
+  --surface-2: 246 245 241;   /* secondary surface */
+  --surface-3: 240 238 232;   /* tertiary surface */
+
+  /* Ink */
+  --ink: 15 15 15;            /* #0F0F0F primary text */
+  --ink-2: 63 63 63;          /* secondary text */
+  --ink-3: 107 107 107;       /* muted text */
+
+  /* Border */
+  --line: 232 229 222;        /* warm border */
+  --line-2: 219 215 206;      /* stronger border */
+
+  /* Brand accent — kept */
+  --brand-gold: 201 168 76;
+  --brand-gold-light: 232 201 122;
+  --brand-gold-dark: 168 135 46;
+  --brand-navy: 13 27 42;
+
+  /* Status */
+  --success: 16 185 129;
+  --warning: 245 158 11;
+  --danger: 239 68 68;
+
+  /* shadcn semantic tokens (light) */
+  --background: 250 250 247;
+  --foreground: 15 15 15;
+  --card: 255 255 255;
+  --card-foreground: 15 15 15;
+  --popover: 255 255 255;
+  --popover-foreground: 15 15 15;
+  --primary: 15 15 15;
+  --primary-foreground: 255 255 255;
+  --secondary: 246 245 241;
+  --secondary-foreground: 15 15 15;
+  --muted: 240 238 232;
+  --muted-foreground: 107 107 107;
+  --accent: 246 245 241;
+  --accent-foreground: 15 15 15;
+  --destructive: 239 68 68;
+  --destructive-foreground: 255 255 255;
+  --border: 232 229 222;
+  --input: 246 245 241;
+  --ring: 201 168 76;
+  --radius: 1rem;
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-base: 280ms;
+  --duration-slow: 500ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Base reset ────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: rgb(var(--line));
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    background-color: rgb(var(--bg));
+    color-scheme: light;
+  }
+
+  body {
+    background-color: rgb(var(--bg));
+    color: rgb(var(--ink));
+    font-family: var(--font-arabic, var(--font-inter, 'Inter')), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+  }
+
+  [dir='rtl'] { direction: rtl; }
+
+  *:focus-visible {
+    outline: 2px solid #C9A84C;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  /* Scrollbar — subtle for light theme */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+
+  ::selection {
+    background-color: rgba(201, 168, 76, 0.3);
+    color: rgb(var(--ink));
+  }
+}
+
+/* ── Utility classes ───────────────────────────────────────────────────────── */
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+
+  /* Marketplace-style soft layered shadows */
+  .shadow-card {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+  }
+  .shadow-card-hover {
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+  }
+  .shadow-popover {
+    box-shadow: 0 10px 32px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .shadow-pill {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  /* Glass / blur surfaces */
+  .glass-light {
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+
+  /* Gradient text */
+  .gradient-text-gold {
+    background: linear-gradient(135deg, #C9A84C 0%, #E8C97A 50%, #C9A84C 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .gradient-text-ink {
+    background: linear-gradient(180deg, #0F0F0F 0%, #3F3F3F 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Marketplace card image placeholder gradients */
+  .img-placeholder-1 { background: linear-gradient(135deg, #FFD89B 0%, #19547B 100%); }
+  .img-placeholder-2 { background: linear-gradient(135deg, #c9a84c 0%, #3F3F3F 100%); }
+  .img-placeholder-3 { background: linear-gradient(135deg, #74EBD5 0%, #9FACE6 100%); }
+  .img-placeholder-4 { background: linear-gradient(135deg, #FBC2EB 0%, #A6C1EE 100%); }
+  .img-placeholder-5 { background: linear-gradient(135deg, #F6D365 0%, #FDA085 100%); }
+  .img-placeholder-6 { background: linear-gradient(135deg, #84FAB0 0%, #8FD3F4 100%); }
+
+  /* Legacy support — keep apple-panel / apple-text-gradient working for un-rebuilt pages */
+  .apple-panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,255,255,0.72));
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 24px 90px rgba(17,24,39,0.08);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+  }
+  .apple-text-gradient {
+    background: linear-gradient(180deg, #111827 0%, #3f3f46 45%, #8e8e93 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .glass {
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+
+  /*
+   * Legacy dark-class compatibility.
+   * Many older MVP pages still use brand-black/navy and white/gray utility
+   * classes directly. Force those utilities into the light system globally.
+   */
+  .bg-brand-black,
+  .bg-brand-black\/60,
+  .bg-brand-black\/70,
+  .bg-brand-black\/80,
+  .bg-brand-black\/90 {
+    background-color: rgb(var(--bg)) !important;
+  }
+
+  .bg-brand-navy,
+  .bg-brand-navy\/20,
+  .bg-brand-navy\/40,
+  .bg-brand-navy\/50,
+  .bg-brand-navy\/60,
+  .bg-brand-navy\/70,
+  .bg-brand-navy\/80,
+  .bg-brand-navy\/90,
+  .bg-brand-navy-light,
+  .bg-brand-navy-light\/50,
+  .bg-white\/5,
+  .bg-white\/10 {
+    background-color: rgb(var(--surface)) !important;
+  }
+
+  .hover\:bg-white\/5:hover,
+  .hover\:bg-white\/10:hover,
+  .hover\:bg-brand-navy\/60:hover {
+    background-color: rgb(var(--surface-2)) !important;
+  }
+
+  .text-brand-white,
+  .text-brand-off-white,
+  .text-white,
+  .text-gray-100,
+  .text-gray-200,
+  .text-gray-300 {
+    color: rgb(var(--ink)) !important;
+  }
+
+  .text-brand-muted,
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-600,
+  .placeholder-brand-muted::placeholder,
+  .placeholder-gray-500::placeholder {
+    color: rgb(var(--ink-3)) !important;
+  }
+
+  .border-white\/5,
+  .border-white\/10,
+  .border-white\/20,
+  .divide-white\/5 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(var(--line)) !important;
+  }
+
+  .gold-border { border-color: rgba(201, 168, 76, 0.3); }
+
+  .shimmer-bg {
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(201, 168, 76, 0.08) 50%,
+      transparent 60%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Animation utilities */
+  .hover-lift {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-4px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
