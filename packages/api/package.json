@@ -9,8 +9,8 @@
     "dev": "tsx watch --env-file=../../.env src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "NODE_ENV=test node --env-file=../../.env --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
-    "test:e2e": "NODE_ENV=test node --env-file=../../.env --experimental-test-module-mocks --import tsx --test \"src/__tests__/e2e/**/*.test.ts\"",
+    "test": "NODE_ENV=test node --env-file-if-exists=../../.env --experimental-test-module-mocks --import tsx --test \"src/**/*.test.ts\"",
+    "test:e2e": "NODE_ENV=test node --env-file-if-exists=../../.env --experimental-test-module-mocks --import tsx --test \"src/__tests__/e2e/**/*.test.ts\"",
     "lint": "eslint src/**/*.ts",
     "clean": "rm -rf dist"
   },
