@@ -28,6 +28,19 @@
     "typescript": "^5.5.0"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "@prisma/client",
+      "@prisma/engines",
+      "@sentry/cli",
+      "@swc/core",
+      "core-js",
+      "esbuild",
+      "msgpackr-extract",
+      "prisma",
+      "protobufjs",
+      "sharp"
+    ],
     "overrides": {
       "@types/react": "19.2.14",
       "@types/react-dom": "19.2.3"
