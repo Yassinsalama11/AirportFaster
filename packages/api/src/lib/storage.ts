@@ -38,15 +38,33 @@ class LocalDiskAdapter implements StorageAdapter {
 
 // ── S3 adapter ────────────────────────────────────────────────────────────────
 
+type S3ClientOpts = {
+  region: string;
+  endpoint?: string;
+  forcePathStyle?: boolean;
+  credentials?: { accessKeyId: string; secretAccessKey: string };
+};
+
 class S3Adapter implements StorageAdapter {
   private readonly bucket: string;
   private readonly region: string;
   private readonly cdnBase: string;
+  private readonly endpoint: string | undefined;
 
-  constructor(bucket: string, region: string, cdnBase: string) {
+  constructor(bucket: string, region: string, cdnBase: string, endpoint?: string) {
     this.bucket = bucket;
     this.region = region;
     this.cdnBase = cdnBase;
+    this.endpoint = endpoint;
+  }
+
+  private clientOpts(): S3ClientOpts {
+    const opts: S3ClientOpts = { region: this.region };
+    if (this.endpoint) {
+      opts.endpoint = this.endpoint;
+      opts.forcePathStyle = true;
+    }
+    return opts;
   }
 
   async upload(filename: string, stream: Readable, mimeType: string): Promise<string> {
@@ -54,10 +72,10 @@ class S3Adapter implements StorageAdapter {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s3Module = await import('@aws-sdk/client-s3' as any);
     const { S3Client, PutObjectCommand } = s3Module as {
-      S3Client: new (opts: { region: string }) => { send: (cmd: unknown) => Promise<void> };
+      S3Client: new (opts: S3ClientOpts) => { send: (cmd: unknown) => Promise<void> };
       PutObjectCommand: new (opts: { Bucket: string; Key: string; Body: Buffer; ContentType: string }) => unknown;
     };
-    const client = new S3Client({ region: this.region });
+    const client = new S3Client(this.clientOpts());
     const safeFilename = sanitizeFilename(filename);
     const chunks: Buffer[] = [];
     for await (const chunk of stream) {
@@ -82,13 +100,13 @@ class S3Adapter implements StorageAdapter {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const presignerModule = await import('@aws-sdk/s3-request-presigner' as any);
     const { S3Client, PutObjectCommand } = s3Module as {
-      S3Client: new (opts: { region: string }) => unknown;
+      S3Client: new (opts: S3ClientOpts) => unknown;
       PutObjectCommand: new (opts: { Bucket: string; Key: string; ContentType: string }) => unknown;
     };
     const { getSignedUrl } = presignerModule as {
       getSignedUrl: (client: unknown, cmd: unknown, opts: { expiresIn: number }) => Promise<string>;
     };
-    const client = new S3Client({ region: this.region });
+    const client = new S3Client(this.clientOpts());
     const safeKey = sanitizeFilename(key);
     const url = await getSignedUrl(
       client,
@@ -128,10 +146,16 @@ export function getStorageAdapter(): StorageAdapter {
 
   const bucket = process.env['AWS_S3_BUCKET'];
   const region = process.env['AWS_REGION'];
-  const cdnBase = process.env['AWS_CDN_BASE'];
+  const cdnBase = process.env['AWS_CDN_BASE'] ?? process.env['AWS_CLOUDFRONT_URL'];
+  const endpoint = process.env['AWS_ENDPOINT_URL'];
 
   if (bucket && region) {
-    _adapter = new S3Adapter(bucket, region, cdnBase ?? `https://${bucket}.s3.${region}.amazonaws.com`);
+    _adapter = new S3Adapter(
+      bucket,
+      region,
+      cdnBase ?? `https://${bucket}.s3.${region}.amazonaws.com`,
+      endpoint,
+    );
   } else {
     _adapter = new LocalDiskAdapter(LOCAL_UPLOAD_DIR, LOCAL_UPLOAD_URL_BASE);
   }
