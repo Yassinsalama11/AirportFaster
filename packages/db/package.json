@@ -19,7 +19,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "DATABASE_URL=$(grep DATABASE_URL ../../.env | cut -d= -f2- | tr -d '\"') prisma migrate dev",
     "db:migrate:prod": "DATABASE_URL=$(grep DATABASE_URL ../../.env | cut -d= -f2- | tr -d '\"') prisma migrate deploy",
-    "db:seed": "npx tsx --env-file=../../.env prisma/seed.ts",
+    "db:seed": "npx tsx --env-file-if-exists=../../.env prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "postinstall": "prisma generate"
