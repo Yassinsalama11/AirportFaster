@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface AirportService {
   id: string;
   service?: { slug: string; translations: Array<{ locale: string; name: string }> };
@@ -131,7 +129,7 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
   const fetchRules = useCallback(async () => {
     setLoadingRules(true);
     const fetches = airportServices.map((as) =>
-      fetch(`${API_BASE}/api/admin/pricing/rules?airportServiceId=${as.id}`, { credentials: 'include' })
+      fetch(`/api/admin/pricing/rules?airportServiceId=${as.id}`)
         .then((r) => r.json())
         .then((j) => (j.success ? (j.data.rules as PricingRule[]) : []))
         .catch(() => [] as PricingRule[])
@@ -143,7 +141,7 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
 
   useEffect(() => {
     void fetchRules();
-    fetch(`${API_BASE}/api/admin/suppliers`, { credentials: 'include' })
+    fetch('/api/admin/suppliers')
       .then((r) => r.json())
       .then((j) => { if (j.success && Array.isArray(j.data.items)) setSuppliers(j.data.items as Supplier[]); })
       .catch(() => undefined);
@@ -206,14 +204,13 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
 
     const isEdit = editingRuleId != null;
     const url = isEdit
-      ? `${API_BASE}/api/admin/pricing/rules/${editingRuleId}`
-      : `${API_BASE}/api/admin/pricing/rules`;
+      ? `/api/admin/pricing/rules/${editingRuleId}`
+      : '/api/admin/pricing/rules';
 
     try {
       const res = await fetch(url, {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(body),
       });
       const json = await res.json();
@@ -232,9 +229,8 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
 
   async function handleDelete(ruleId: string) {
     try {
-      await fetch(`${API_BASE}/api/admin/pricing/rules/${ruleId}`, {
+      await fetch(`/api/admin/pricing/rules/${ruleId}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
       setDeleteConfirm(null);
       await fetchRules();

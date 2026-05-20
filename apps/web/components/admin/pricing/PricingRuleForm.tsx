@@ -23,8 +23,6 @@ interface Props {
   suppliers?: Supplier[];
 }
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 function getServiceLabel(as: AirportService): string {
   if (!as.service) return as.id.slice(0, 8);
   const t = as.service.translations.find((t) => t.locale === 'en');
@@ -94,10 +92,9 @@ export function PricingRuleForm({ airportId, airportServices, suppliers = [] }: 
     if (validTo) body['validTo'] = new Date(validTo).toISOString();
 
     try {
-      const res = await fetch(`${API_BASE}/api/admin/pricing/rules`, {
+      const res = await fetch('/api/admin/pricing/rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(body),
       });
 
