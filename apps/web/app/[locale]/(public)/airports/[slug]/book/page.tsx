@@ -17,6 +17,11 @@ interface AirportService {
   service: Service;
   pricingRules?: Array<{ basePriceMinor: number | null; currency: string; passengerPricing?: Record<string, number> | null }>;
 }
+interface AirportImage {
+  url: string;
+  altText?: string | null;
+  isPrimary: boolean;
+}
 interface Airport {
   id: string;
   iataCode: string;
@@ -25,6 +30,7 @@ interface Airport {
   country: string;
   status: string;
   translations: AirportTranslation[];
+  images?: AirportImage[];
   airportServices: AirportService[];
 }
 
@@ -106,6 +112,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
 
   const serviceName = selectedService ? getServiceName(selectedService.service, locale) : undefined;
   const firstPrice = selectedService?.pricingRules?.[0];
+  const primaryImage = airport.images?.find((image) => image.isPrimary) ?? airport.images?.[0];
   const fromPriceDisplay = firstPrice?.basePriceMinor != null
     ? `€${(firstPrice.basePriceMinor / 100).toFixed(0)}`
     : undefined;
@@ -151,6 +158,8 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           city: airport.city,
           country: airport.country,
           ...(fromPriceDisplay && { fromPriceDisplay }),
+          ...(primaryImage?.url && { imageUrl: primaryImage.url }),
+          ...(primaryImage?.altText && { imageAlt: primaryImage.altText }),
           pricingCurrency: '€',
           imgVariant: 2,
         }}

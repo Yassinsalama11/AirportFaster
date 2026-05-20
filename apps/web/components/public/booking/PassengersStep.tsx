@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Minus, Plus, Shield, Clock, HeadphonesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,8 @@ interface SummaryProps {
   country: string;
   fromPriceDisplay?: string | undefined;
   pricingCurrency?: string | undefined;
+  imageUrl?: string | undefined;
+  imageAlt?: string | undefined;
   imgVariant?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
@@ -648,9 +651,18 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
           <div
             className={cn(
               'relative aspect-[16/9]',
-              `img-placeholder-${summary.imgVariant ?? 2}`
+              !summary.imageUrl && `img-placeholder-${summary.imgVariant ?? 2}`
             )}
           >
+            {summary.imageUrl && (
+              <Image
+                src={summary.imageUrl}
+                alt={summary.imageAlt ?? summary.airportName}
+                fill
+                sizes="(max-width: 1024px) 100vw, 360px"
+                className="object-cover object-center"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
             <div className="absolute bottom-3 start-3 inline-flex items-center gap-2 bg-white/95 text-ink rounded-full px-3 py-1 text-xs font-mono font-bold" dir="ltr">
               {summary.iataCode}
