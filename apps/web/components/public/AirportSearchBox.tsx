@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 const MIN_AUTOCOMPLETE_LENGTH = 2;
 
 interface AirportTranslation {
@@ -77,7 +76,7 @@ export function AirportSearchBox() {
 
     async function loadAirports() {
       try {
-        const response = await fetch(`${API_BASE}/api/public/airports`, {
+        const response = await fetch('/api/public/airports', {
           cache: 'no-store',
         });
 

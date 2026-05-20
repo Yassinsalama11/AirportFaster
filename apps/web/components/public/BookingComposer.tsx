@@ -5,8 +5,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface AirportTranslation { locale: string; name: string; }
 interface ServiceRef {
   id: string;
@@ -101,8 +99,7 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
   // Load all airports on mount
   useEffect(() => {
     let cancelled = false;
-    // Airports list rarely changes; let the browser cache for 5 minutes too.
-    fetch(`${API_BASE}/api/public/airports`, { cache: 'force-cache' })
+    fetch('/api/public/airports', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j: { success: boolean; data?: { airports?: Airport[] } }) => {
         if (cancelled) return;
