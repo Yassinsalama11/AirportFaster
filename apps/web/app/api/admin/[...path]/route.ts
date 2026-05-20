@@ -33,15 +33,17 @@ async function proxyAdminRequest(
   if (contentType) headers.set('content-type', contentType);
   if (sessionToken) headers.set('cookie', `${COOKIE_NAME}=${sessionToken}`);
 
-  const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-  const body = hasBody ? await request.arrayBuffer() : undefined;
-
-  const apiResponse = await fetch(targetUrl, {
+  const fetchOptions: RequestInit = {
     method: request.method,
     headers,
-    body,
     cache: 'no-store',
-  });
+  };
+
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    fetchOptions.body = await request.arrayBuffer();
+  }
+
+  const apiResponse = await fetch(targetUrl, fetchOptions);
 
   return new NextResponse(apiResponse.body, {
     status: apiResponse.status,
