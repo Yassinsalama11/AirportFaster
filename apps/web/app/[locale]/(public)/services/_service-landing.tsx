@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { SchemaScript } from '@/components/public/SchemaScript';
 import { serviceSchema, breadcrumbSchema, faqSchema, howToSchema, speakableSchema } from '@/lib/schema';
 
@@ -13,23 +13,45 @@ interface AirportResult {
   id: string;
   iataCode: string;
   slug: string;
-  name: string;
   city: string;
   country: string;
-  services: Array<{ id: string; slug: string; name: string; fromPriceMinorUnits: number; currency: string }>;
+  translations: Array<{ locale: string; name: string }>;
+  airportServices: Array<{
+    id: string;
+    isActive: boolean;
+    service: {
+      slug: string;
+      translations: Array<{ locale: string; name: string }>;
+    };
+  }>;
 }
 
-async function getAirports(slug: ServiceSlug): Promise<AirportResult[]> {
+async function getAirports(serviceKey: ServiceKey): Promise<AirportResult[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/public/search?service=${encodeURIComponent(slug)}`, {
+    const res = await fetch(`${API_BASE}/api/public/airports`, {
       next: { revalidate: 3600, tags: ['airports', 'services'] },
     });
     if (!res.ok) return [];
-    const data = (await res.json()) as { success: boolean; data: { results: AirportResult[] } };
-    return data.success ? data.data.results : [];
+    const data = (await res.json()) as { success: boolean; data: { airports: AirportResult[] } };
+    return data.success
+      ? data.data.airports.filter((airport) =>
+          airport.airportServices.some(
+            (airportService) =>
+              airportService.isActive && airportService.service.slug === serviceKey,
+          ),
+        )
+      : [];
   } catch {
     return [];
   }
+}
+
+function getAirportName(airport: AirportResult, locale: string): string {
+  return (
+    airport.translations.find((translation) => translation.locale === locale)?.name ??
+    airport.translations.find((translation) => translation.locale === 'en')?.name ??
+    airport.city
+  );
 }
 
 interface Props {
@@ -38,8 +60,9 @@ interface Props {
 }
 
 export async function ServiceLandingPage({ slug, serviceKey }: Props) {
-  const airports = await getAirports(slug);
+  const airports = await getAirports(serviceKey);
 
+  const locale = await getLocale();
   const tPages = await getTranslations('service_pages');
   const tCommon = await getTranslations('common');
 
@@ -108,6 +131,9 @@ export async function ServiceLandingPage({ slug, serviceKey }: Props) {
           <p className="service-hero-intro text-ink-2 text-lg max-w-2xl">
             {tPages('default.intro', { name })}
           </p>
+          <p className="mt-4 text-sm font-semibold text-brand-gold-dark">
+            {tPages('available_at_count', { count: airports.length })}
+          </p>
         </div>
       </section>
 
@@ -146,18 +172,18 @@ export async function ServiceLandingPage({ slug, serviceKey }: Props) {
       </section>
 
       {/* Airports Grid */}
-      {airports.length > 0 && (
-        <section className="border-b border-line">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-            <h2 className="text-2xl font-bold text-ink mb-8">
-              {tPages('airports_offering', { name })}
-            </h2>
+      <section className="border-b border-line">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <h2 className="text-2xl font-bold text-ink mb-8">
+            {tPages('airports_offering', { name })}
+          </h2>
+          {airports.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {airports.map((airport) => {
-                const svc = airport.services.find((s) => s.slug === slug);
-                const priceDisplay = svc
-                  ? `${tCommon('from')} €${(svc.fromPriceMinorUnits / 100).toFixed(0)}`
-                  : null;
+                const airportService = airport.airportServices.find(
+                  (item) => item.isActive && item.service.slug === serviceKey,
+                );
+                const airportName = getAirportName(airport, locale);
                 return (
                   <div key={airport.id} className="bg-surface border border-line rounded-2xl p-6 shadow-card hover:shadow-card-hover hover:border-brand-gold/30 transition-all flex flex-col gap-3">
                     <div className="flex items-center gap-3">
@@ -165,16 +191,17 @@ export async function ServiceLandingPage({ slug, serviceKey }: Props) {
                         {airport.iataCode}
                       </span>
                       <div>
-                        <div className="font-semibold text-ink text-sm">{airport.name}</div>
+                        <div className="font-semibold text-ink text-sm">{airportName}</div>
                         <div className="text-xs text-ink-3">{airport.city}, {airport.country}</div>
                       </div>
                     </div>
-                    {priceDisplay && (
-                      <p className="text-brand-gold-dark text-sm font-medium" dir="ltr">{priceDisplay}</p>
-                    )}
                     <Link
-                      href={`/airports/${airport.slug}/${slug}`}
-                      className="inline-flex items-center gap-1 text-sm text-brand-gold-dark hover:text-brand-gold font-medium transition-colors mt-auto"
+                      href={
+                        airportService
+                          ? `/airports/${airport.slug}/book?serviceId=${airportService.id}`
+                          : `/airports/${airport.slug}`
+                      }
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-gold px-4 py-2 text-sm font-bold text-brand-black hover:bg-brand-gold-light transition-colors mt-auto"
                     >
                       {tPages('book_cta')} <span className="rtl:rotate-180">→</span>
                     </Link>
@@ -182,9 +209,21 @@ export async function ServiceLandingPage({ slug, serviceKey }: Props) {
                 );
               })}
             </div>
-          </div>
-        </section>
-      )}
+          ) : (
+            <div className="bg-surface border border-line rounded-2xl p-8 shadow-card">
+              <p className="text-sm text-ink-2 mb-5">
+                {tPages('available_at_count', { count: 0 })}
+              </p>
+              <Link
+                href="/airports"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-gold px-5 py-2.5 text-sm font-bold text-brand-black hover:bg-brand-gold-light transition-colors"
+              >
+                {tPages('services_breadcrumb')} <span className="rtl:rotate-180">→</span>
+              </Link>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* FAQ */}
       <section className="bg-surface border-t border-line">
