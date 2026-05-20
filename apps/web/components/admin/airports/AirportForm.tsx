@@ -100,8 +100,6 @@ function cn(...classes: (string | false | undefined | null)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface AirportAIResult {
   iataCode: string;
   icaoCode: string;
@@ -184,7 +182,7 @@ export function AirportForm({ airport, services, isNew }: Props) {
   );
 
   async function callApi(path: string, method: string, body: unknown) {
-    const resp = await fetch(`${API_BASE}${path}`, {
+    const resp = await fetch(path, {
       method,
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -222,7 +220,7 @@ export function AirportForm({ airport, services, isNew }: Props) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_BASE}/api/admin/uploads`, {
+      const response = await fetch('/api/admin/uploads', {
         method: 'POST',
         credentials: 'include',
         body: formData,
