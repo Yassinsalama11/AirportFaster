@@ -3,6 +3,7 @@ import { prisma } from '@airportfaster/db';
 import type { CreatePaymentIntentBody, InitiateRefundBody } from './validators.js';
 import {
   createPayment,
+  findLatestPaymentByBookingId,
   findPaymentById,
   listPayments,
   updatePaymentStatus,
@@ -54,6 +55,26 @@ export async function createPaymentIntentService(data: CreatePaymentIntentBody):
 
   if (!booking) {
     throw new PaymentError('Booking not found', 'BOOKING_NOT_FOUND', 404);
+  }
+
+  if (booking.status === 'pending_payment') {
+    const existingPayment = await findLatestPaymentByBookingId(booking.id);
+    if (
+      existingPayment?.stripePaymentIntentId &&
+      existingPayment.status === 'requires_payment'
+    ) {
+      const stripe = getStripe();
+      const paymentIntent = await stripe.paymentIntents.retrieve(existingPayment.stripePaymentIntentId);
+      if (!paymentIntent.client_secret) {
+        throw new PaymentError('Stripe did not return a client_secret', 'STRIPE_ERROR', 500);
+      }
+      return {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        amount: existingPayment.amountMinor,
+        currency: existingPayment.currency,
+      };
+    }
   }
 
   if (booking.status !== 'draft') {

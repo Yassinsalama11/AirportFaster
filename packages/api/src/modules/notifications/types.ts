@@ -9,6 +9,7 @@ export enum NotificationType {
   BookingConfirmed = 'booking_confirmed',
   BookingCancelled = 'booking_cancelled',
   BookingAssigned = 'booking_assigned',
+  BookingDraftReminder = 'booking_draft_reminder',
 }
 
 // ── Data types ────────────────────────────────────────────────────────────────

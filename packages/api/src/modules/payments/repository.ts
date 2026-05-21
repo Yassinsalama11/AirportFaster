@@ -57,6 +57,14 @@ export async function findPaymentByStripeIntentId(
   });
 }
 
+export async function findLatestPaymentByBookingId(bookingId: string): Promise<PaymentRecord | null> {
+  return prisma.payment.findFirst({
+    where: { bookingId },
+    include: paymentInclude,
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 export async function listPayments(query: ListPaymentsQuery): Promise<{
   items: PaymentRecord[];
   nextCursor: string | null;

@@ -265,6 +265,8 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
     if (serviceId) {
       sessionStorage.setItem('airportfaster_booking_serviceId', serviceId);
     }
+    sessionStorage.removeItem('airportfaster_draft_booking');
+    sessionStorage.removeItem('airportfaster_manage_token');
 
     router.push(`/airports/${slug}/book/review${serviceId ? `?serviceId=${serviceId}` : ''}`);
   }

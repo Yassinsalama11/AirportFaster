@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import type { BookingFormData } from './PassengersStep';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
+const API_BASE = '/api/public';
 
 interface PricingRule {
   basePriceMinor: number | null;
@@ -35,6 +35,13 @@ interface CreateBookingResponse {
   };
   error?: string | { code?: string; message?: string; details?: unknown };
   message?: string;
+}
+
+interface DraftBookingSession {
+  bookingId: string;
+  bookingReference: string;
+  currency: string;
+  serviceId: string;
 }
 
 function formatDateTime(dt: string): string {
@@ -100,6 +107,8 @@ export function ReviewStep({
   const params = useParams();
   const locale = (params?.['locale'] as string | undefined) ?? 'en';
   const [form, setForm] = useState<BookingFormData | null>(null);
+  const [draftBooking, setDraftBooking] = useState<DraftBookingSession | null>(null);
+  const [draftLoading, setDraftLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,6 +125,131 @@ export function ReviewStep({
       router.replace(`/${locale}/airports/${slug}/book${serviceId ? `?serviceId=${serviceId}` : ''}`);
     }
   }, [slug, locale, serviceId, router]);
+
+  useEffect(() => {
+    if (!form || !serviceId) {
+      setDraftLoading(false);
+      return;
+    }
+
+    const currentForm = form;
+    const currentServiceId = serviceId;
+    let cancelled = false;
+
+    async function ensureDraftBooking() {
+      setDraftLoading(true);
+      setError(null);
+
+      const storedDraft = sessionStorage.getItem('airportfaster_draft_booking');
+      if (storedDraft) {
+        try {
+          const parsed = JSON.parse(storedDraft) as DraftBookingSession;
+          if (parsed.bookingId && parsed.serviceId === currentServiceId) {
+            if (!cancelled) setDraftBooking(parsed);
+            if (!cancelled) setDraftLoading(false);
+            return;
+          }
+        } catch {
+          sessionStorage.removeItem('airportfaster_draft_booking');
+        }
+      }
+
+      try {
+        if (!currentForm.serviceDate) {
+          throw new Error('Please go back and choose a service date.');
+        }
+
+        const flightDirection = currentForm.flight.direction || 'departure';
+        const iata = currentForm.flight.originDestIata.trim().toUpperCase();
+        const shouldSendFlight =
+          currentForm.flight.direction !== '' &&
+          currentForm.flight.flightNumber.trim() !== '' &&
+          currentForm.flight.dateTime.trim() !== '';
+
+        const payload = {
+          airportServiceId: currentServiceId,
+          serviceDate: currentForm.serviceDate,
+          direction: flightDirection,
+          passengers: currentForm.passengers.map((passenger) => {
+            const passportNumber = trimOrUndefined(passenger.passportNumber);
+            const nationality = passenger.nationality.trim().toUpperCase();
+            return {
+              firstName: passenger.firstName.trim(),
+              lastName: passenger.lastName.trim(),
+              type: passenger.type,
+              ...(passportNumber !== undefined && { passportNumber }),
+              ...(/^[A-Z]{2}$/.test(nationality) && { nationality }),
+            };
+          }),
+          contact: {
+            email: currentForm.contact.email.trim(),
+            phone: currentForm.contact.phone.trim(),
+            firstName: currentForm.contact.firstName.trim(),
+            lastName: currentForm.contact.lastName.trim(),
+          },
+          ...(shouldSendFlight && {
+            flight: {
+              direction: currentForm.flight.direction,
+              flightNumber: currentForm.flight.flightNumber.trim().toUpperCase(),
+              scheduledAt: new Date(currentForm.flight.dateTime).toISOString(),
+              ...(trimOrUndefined(currentForm.flight.terminal) !== undefined && {
+                terminal: trimOrUndefined(currentForm.flight.terminal),
+              }),
+              ...(iata.length === 3 &&
+                (currentForm.flight.direction === 'arrival'
+                  ? { origin: iata }
+                  : { destination: iata })),
+            },
+          }),
+          ...(trimOrUndefined(currentForm.specialRequests) !== undefined && {
+            specialRequests: trimOrUndefined(currentForm.specialRequests),
+          }),
+          locale,
+        };
+
+        const res = await fetch(`${API_BASE}/bookings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = (await res.json()) as CreateBookingResponse;
+        if (!res.ok || !data.success) {
+          throw new Error(getApiErrorMessage(data));
+        }
+
+        const bookingId = data.data?.bookingId;
+        if (!bookingId) {
+          throw new Error('Booking created but ID missing. Please contact support.');
+        }
+
+        const draft: DraftBookingSession = {
+          bookingId,
+          bookingReference: data.data?.bookingReference ?? 'PENDING',
+          currency: data.data?.currency ?? 'EUR',
+          serviceId: currentServiceId,
+        };
+
+        if (data.data?.manageToken) {
+          sessionStorage.setItem('airportfaster_manage_token', data.data.manageToken);
+        }
+        sessionStorage.setItem('airportfaster_draft_booking', JSON.stringify(draft));
+        if (!cancelled) setDraftBooking(draft);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+        }
+      } finally {
+        if (!cancelled) setDraftLoading(false);
+      }
+    }
+
+    void ensureDraftBooking();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form, serviceId, locale]);
 
   if (!form) {
     return (
@@ -187,86 +321,14 @@ export function ReviewStep({
       if (!serviceId) {
         throw new Error('Please choose a service before confirming your booking.');
       }
-      if (!form.serviceDate) {
-        throw new Error('Please go back and choose a service date.');
-      }
-
-      const flightDirection = form.flight.direction || 'departure';
-      const iata = form.flight.originDestIata.trim().toUpperCase();
-      const shouldSendFlight =
-        form.flight.direction !== '' &&
-        form.flight.flightNumber.trim() !== '' &&
-        form.flight.dateTime.trim() !== '';
-
-      const payload = {
-        airportServiceId: serviceId,
-        serviceDate: form.serviceDate,
-        direction: flightDirection,
-        passengers: form.passengers.map((passenger) => {
-          const passportNumber = trimOrUndefined(passenger.passportNumber);
-          const nationality = passenger.nationality.trim().toUpperCase();
-          return {
-            firstName: passenger.firstName.trim(),
-            lastName: passenger.lastName.trim(),
-            type: passenger.type,
-            ...(passportNumber !== undefined && { passportNumber }),
-            ...(/^[A-Z]{2}$/.test(nationality) && { nationality }),
-          };
-        }),
-        contact: {
-          email: form.contact.email.trim(),
-          phone: form.contact.phone.trim(),
-          firstName: form.contact.firstName.trim(),
-          lastName: form.contact.lastName.trim(),
-        },
-        ...(shouldSendFlight && {
-          flight: {
-            direction: form.flight.direction,
-            flightNumber: form.flight.flightNumber.trim().toUpperCase(),
-            scheduledAt: new Date(form.flight.dateTime).toISOString(),
-            ...(trimOrUndefined(form.flight.terminal) !== undefined && {
-              terminal: trimOrUndefined(form.flight.terminal),
-            }),
-            ...(iata.length === 3 &&
-              (form.flight.direction === 'arrival'
-                ? { origin: iata }
-                : { destination: iata })),
-          },
-        }),
-        ...(trimOrUndefined(form.specialRequests) !== undefined && {
-          specialRequests: trimOrUndefined(form.specialRequests),
-        }),
-        locale,
-      };
-
-      const res = await fetch(`${API_BASE}/api/public/bookings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = (await res.json()) as CreateBookingResponse;
-
-      if (!res.ok || !data.success) {
-        throw new Error(getApiErrorMessage(data));
-      }
-
-      const bookingId = data.data?.bookingId;
-      const bookingRef = data.data?.bookingReference ?? 'PENDING';
-      const bookingCurrency = data.data?.currency ?? currency;
-      const manageToken = data.data?.manageToken;
-      if (manageToken) {
-        sessionStorage.setItem('airportfaster_manage_token', manageToken);
+      if (!draftBooking) {
+        throw new Error('Your draft booking is still being prepared. Please try again.');
       }
       sessionStorage.removeItem('airportfaster_booking_form');
       sessionStorage.removeItem('airportfaster_booking_serviceId');
 
-      if (!bookingId) {
-        throw new Error('Booking created but ID missing. Please contact support.');
-      }
-
       router.push(
-        `/${locale}/book/${bookingId}/payment?currency=${encodeURIComponent(bookingCurrency)}&ref=${encodeURIComponent(bookingRef)}`,
+        `/${locale}/book/${draftBooking.bookingId}/payment?currency=${encodeURIComponent(draftBooking.currency)}&ref=${encodeURIComponent(draftBooking.bookingReference)}`,
       );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
@@ -395,10 +457,10 @@ export function ReviewStep({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={loading}
+          disabled={loading || draftLoading || !draftBooking}
           className="inline-flex items-center gap-2 px-8 py-3.5 bg-brand-gold text-brand-black font-bold rounded-xl hover:bg-brand-gold-light transition-colors disabled:opacity-70 disabled:cursor-not-allowed min-w-[160px] justify-center"
         >
-          {loading ? (
+          {loading || draftLoading ? (
             <>
               <svg className="animate-spin h-4 w-4 text-brand-black" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

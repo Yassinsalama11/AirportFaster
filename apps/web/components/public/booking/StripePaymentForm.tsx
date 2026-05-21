@@ -12,6 +12,7 @@ interface StripePaymentFormProps {
   bookingReference: string;
   currency: string;
   amountMinorUnits: number;
+  locale: string;
 }
 
 function formatAmount(minorUnits: number, _currency: string): string {
@@ -24,9 +25,10 @@ interface InnerFormProps {
   bookingReference: string;
   currency: string;
   amountMinorUnits: number;
+  locale: string;
 }
 
-function InnerPaymentForm({ bookingId, bookingReference, currency, amountMinorUnits }: InnerFormProps) {
+function InnerPaymentForm({ bookingId, bookingReference, currency, amountMinorUnits, locale }: InnerFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ function InnerPaymentForm({ bookingId, bookingReference, currency, amountMinorUn
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const returnUrl =
-      `${origin}/book/${bookingId}/confirmation` +
+      `${origin}/${locale}/book/${bookingId}/confirmation` +
       `?ref=${encodeURIComponent(bookingReference)}` +
       `&amount=${amountMinorUnits}` +
       `&currency=${encodeURIComponent(currency)}`;
@@ -131,6 +133,7 @@ export function StripePaymentForm({
   bookingReference,
   currency,
   amountMinorUnits,
+  locale,
 }: StripePaymentFormProps) {
   return (
     <Elements
@@ -155,6 +158,7 @@ export function StripePaymentForm({
         bookingReference={bookingReference}
         currency={currency}
         amountMinorUnits={amountMinorUnits}
+        locale={locale}
       />
     </Elements>
   );

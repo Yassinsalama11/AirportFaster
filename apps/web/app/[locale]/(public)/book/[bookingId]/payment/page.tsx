@@ -12,7 +12,7 @@ const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 export const metadata: Metadata = { title: 'Complete Payment — AirportFaster' };
 
 type PaymentPageProps = {
-  params: Promise<{ bookingId: string }>;
+  params: Promise<{ bookingId: string; locale: string }>;
   searchParams: Promise<{ currency?: string; ref?: string }>;
 };
 
@@ -57,7 +57,7 @@ async function createPaymentIntent(bookingId: string, currency: string) {
 }
 
 export default async function PaymentPage({ params, searchParams }: PaymentPageProps) {
-  const { bookingId } = await params;
+  const { bookingId, locale } = await params;
   const { currency = 'EUR', ref } = await searchParams;
 
   const t = await getTranslations('booking');
@@ -66,7 +66,7 @@ export default async function PaymentPage({ params, searchParams }: PaymentPageP
   const result = await createPaymentIntent(bookingId, currency);
 
   if ('redirect' in result && result.redirect) {
-    redirect(`/book/${bookingId}/confirmation`);
+    redirect(`/${locale}/book/${bookingId}/confirmation`);
   }
 
   if ('error' in result && result.error) {
@@ -130,6 +130,7 @@ export default async function PaymentPage({ params, searchParams }: PaymentPageP
         bookingReference={bookingReference}
         currency={intent.currency}
         amountMinorUnits={intent.amount}
+        locale={locale}
       />
     </div>
   );

@@ -10,6 +10,7 @@ import { bookingAssignedTemplate } from './templates/booking-assigned.js';
 import { bookingPaidAdminTemplate } from './templates/booking-paid-admin.js';
 import { bookingCancelAdminTemplate } from './templates/booking-cancel-admin.js';
 import { complaintAdminTemplate } from './templates/complaint-admin.js';
+import { bookingDraftReminderTemplate } from './templates/booking-draft-reminder.js';
 
 // ── SMTP Transport ────────────────────────────────────────────────────────────
 
@@ -133,6 +134,32 @@ export async function sendBookingAssignedToSupplierEmail(
       channel: NotificationChannel.Email,
       type: NotificationType.BookingAssigned,
       recipient: data.supplierContactEmail,
+      bookingId: data.bookingId,
+      success: false,
+      error: errorMessage,
+    }).catch(() => undefined);
+  }
+}
+
+export async function sendBookingDraftReminderEmail(data: BookingNotificationData): Promise<void> {
+  try {
+    const template = bookingDraftReminderTemplate(data);
+    await sendEmail(data.customerEmail, template);
+    await logNotification({
+      channel: NotificationChannel.Email,
+      type: NotificationType.BookingDraftReminder,
+      recipient: data.customerEmail,
+      bookingId: data.bookingId,
+      success: true,
+    });
+    logger.info({ bookingId: data.bookingId, to: data.customerEmail }, 'Booking draft reminder email sent');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error({ error, bookingId: data.bookingId }, 'Failed to send booking draft reminder email');
+    await logNotification({
+      channel: NotificationChannel.Email,
+      type: NotificationType.BookingDraftReminder,
+      recipient: data.customerEmail,
       bookingId: data.bookingId,
       success: false,
       error: errorMessage,

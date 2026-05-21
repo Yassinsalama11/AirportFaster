@@ -24,6 +24,7 @@ import {
   sendBookingConfirmedEmail,
   sendBookingCancelledEmail,
   sendBookingAssignedToSupplierEmail,
+  sendBookingDraftReminderEmail,
 } from '../notifications/service.js';
 import type { BookingNotificationData } from '../notifications/types.js';
 
@@ -203,6 +204,14 @@ export async function createBookingService(data: CreateBookingBody): Promise<{
     type: 'booking_created',
     payload: { actorType: 'system', reference },
   });
+
+  const fullBooking = await getBookingByIdService(booking.id);
+  void buildNotificationData(fullBooking)
+    .then((notificationData) => sendBookingDraftReminderEmail(notificationData))
+    .catch(async (error) => {
+      const { logger } = await import('../../lib/logger.js');
+      logger.error({ error, bookingId: booking.id }, 'Booking draft reminder dispatch failed');
+    });
 
   return {
     bookingId: booking.id,
@@ -821,4 +830,3 @@ export async function publicSubmitComplaintService(
 
   return { success: true, incidentId: incident.id };
 }
-
