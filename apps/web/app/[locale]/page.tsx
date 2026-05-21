@@ -19,6 +19,7 @@ import { faqSchema, howToSchema } from '@/lib/schema';
 import { localeAlternates, ogLocales } from '@/lib/seo';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { CookieBanner } from '@/components/public/CookieBanner';
 import { BookingComposer } from '@/components/public/BookingComposer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -528,6 +529,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </section>
       </main>
       <Footer />
+      <CookieBanner />
     </>
   );
 }
