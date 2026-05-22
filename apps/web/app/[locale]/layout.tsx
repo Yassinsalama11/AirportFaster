@@ -39,41 +39,49 @@ export const viewport: Viewport = {
   ],
 };
 
-export const metadata: Metadata = {
-  title: {
-    default: 'AirportFaster — Premium Airport Services',
-    template: '%s | AirportFaster',
-  },
-  description:
-    'Book fast track, meet & greet, and lounge access at airports worldwide. Premium airport experience platform.',
-  metadataBase: new URL(BASE_URL),
-  openGraph: {
-    siteName: 'AirportFaster',
-    locale: 'en_US',
-    alternateLocale: ['ar_AR'],
-    images: [
-      {
-        url: `${BASE_URL}/og-image.png`,
-        width: 1200,
-        height: 630,
-        alt: 'AirportFaster — Premium Airport Services',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    site: '@airportfaster',
-    images: [`${BASE_URL}/og-image.png`],
-  },
-  alternates: {
-    canonical: `${BASE_URL}/en`,
-    languages: {
-      en: `${BASE_URL}/en`,
-      ar: `${BASE_URL}/ar`,
-      'x-default': `${BASE_URL}/en`,
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  return {
+    title: {
+      default: 'AirportFaster — Premium Airport Services',
+      template: '%s | AirportFaster',
     },
-  },
-};
+    description:
+      'Book fast track, meet & greet, and lounge access at airports worldwide. Premium airport experience platform.',
+    metadataBase: new URL(BASE_URL),
+    openGraph: {
+      siteName: 'AirportFaster',
+      locale: locale === 'ar' ? 'ar_AR' : 'en_US',
+      alternateLocale: locale === 'ar' ? ['en_US'] : ['ar_AR'],
+      images: [
+        {
+          url: `${BASE_URL}/og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: 'AirportFaster — Premium Airport Services',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      site: '@airportfaster',
+      images: [`${BASE_URL}/og-image.png`],
+    },
+    alternates: {
+      canonical: `${BASE_URL}/${locale}`,
+      languages: {
+        en: `${BASE_URL}/en`,
+        ar: `${BASE_URL}/ar`,
+        'x-default': `${BASE_URL}/en`,
+      },
+    },
+  };
+}
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));

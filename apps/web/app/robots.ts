@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 
+const BASE_URL = process.env['NEXT_PUBLIC_BASE_URL'] ?? 'https://airportfaster.com';
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
@@ -25,6 +27,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://airportfaster.com/sitemap.xml',
+    sitemap: `${BASE_URL}/sitemap.xml`,
   };
 }

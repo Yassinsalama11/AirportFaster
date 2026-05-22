@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const BASE_URL = 'https://airportfaster.com';
+const BASE_URL = process.env['NEXT_PUBLIC_BASE_URL'] ?? 'https://airportfaster.com';
 const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 const LOCALES = ['en', 'ar'] as const;
 const SERVICE_SLUGS = ['fast-track', 'meet-and-greet', 'lounge-access'] as const;
@@ -41,9 +41,10 @@ function localeEntries(
     changeFrequency: opts.changeFrequency,
     priority: opts.priority,
     alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, `${BASE_URL}/${l}${path}`]),
-      ) as Record<string, string>,
+      languages: {
+        ...Object.fromEntries(LOCALES.map((l) => [l, `${BASE_URL}/${l}${path}`])),
+        'x-default': `${BASE_URL}/en${path}`,
+      } as Record<string, string>,
     },
   }));
 }
