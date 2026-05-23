@@ -22,6 +22,7 @@ export function CookieBanner() {
   function handleAccept() {
     try {
       localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.dispatchEvent(new Event('cookie_consent_changed'));
     } catch {
       // ignore
     }
@@ -31,6 +32,7 @@ export function CookieBanner() {
   function handleDecline() {
     try {
       localStorage.setItem(STORAGE_KEY, 'declined');
+      window.dispatchEvent(new Event('cookie_consent_changed'));
     } catch {
       // ignore
     }

@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { PostHogProvider } from '@/components/analytics/PostHogProvider';
+import { GoogleTagManager } from '@/components/analytics/GoogleTagManager';
 import { SchemaScript } from '@/components/public/SchemaScript';
 import { SuspenseBoundary } from '@/components/SuspenseBoundary';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
@@ -118,6 +119,7 @@ export default async function LocaleLayout({
         <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
       </head>
       <body>
+        <GoogleTagManager />
         <SchemaScript schema={organizationSchema()} />
         <SchemaScript schema={websiteSchema()} />
         <NextIntlClientProvider locale={locale as Locale} messages={messages}>
