@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { ChevronRight } from 'lucide-react';
 import { BookingStepIndicator } from '@/components/public/booking/BookingStepIndicator';
 import { PassengersStep } from '@/components/public/booking/PassengersStep';
+import { BeginCheckoutTracker } from '@/components/public/BeginCheckoutTracker';
 
 const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 
@@ -146,6 +147,13 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
       </div>
 
       {/* Form */}
+      <BeginCheckoutTracker
+        airportSlug={slug}
+        {...(selectedService?.service.slug && { serviceSlug: selectedService.service.slug })}
+        {...(serviceName && { serviceName })}
+        {...(firstPrice?.basePriceMinor != null && { priceMinorUnits: firstPrice.basePriceMinor })}
+        currency={firstPrice?.currency ?? 'EUR'}
+      />
       <PassengersStep
         slug={slug}
         {...(selectedAirportServiceId !== undefined && { serviceId: selectedAirportServiceId })}

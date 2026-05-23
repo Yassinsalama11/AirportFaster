@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { trackGenerateLead } from '@/lib/analytics';
 
 const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 
@@ -27,6 +28,7 @@ export function ForBusinessForm() {
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error('Request failed');
+      trackGenerateLead('business');
       setSubmit({ status: 'success' });
       setForm({ name: '', company: '', email: '', message: '' });
     } catch {

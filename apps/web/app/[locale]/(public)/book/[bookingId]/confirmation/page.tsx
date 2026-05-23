@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { PurchaseTracker } from '@/components/public/PurchaseTracker';
 
 export const metadata: Metadata = {
   title: 'Booking Confirmation — AirportFaster',
@@ -33,6 +34,14 @@ export default async function ConfirmationPage({ params, searchParams }: Confirm
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
         <div className="max-w-md w-full">
+          {amountMinorUnits !== null && amountMinorUnits > 0 && (
+            <PurchaseTracker
+              bookingId={bookingId}
+              {...(ref && { bookingRef: ref })}
+              amountMinorUnits={amountMinorUnits}
+              currency={currency}
+            />
+          )}
           {/* Gold checkmark icon */}
           <div className="flex justify-center mb-8">
             <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-brand-gold/10 border-2 border-brand-gold/40">

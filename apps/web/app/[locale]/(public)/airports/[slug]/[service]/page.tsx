@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { localeAlternates, ogLocales } from '@/lib/seo';
 import { SchemaScript } from '@/components/public/SchemaScript';
+import { BookNowButton } from '@/components/public/BookNowButton';
 import { airportSchema, breadcrumbSchema, howToSchema, offerSchema, speakableSchema } from '@/lib/schema';
 
 export const revalidate = 3600;
@@ -292,12 +293,15 @@ export default async function AirportServicePage({
             {serviceDescription ??
               `Experience premium ${serviceName} at ${airportName} (${airport.iataCode}). Skip the queues and travel with confidence.`}
           </p>
-          <Link
-            href={`/airports/${slug}/book?service=${serviceSlug}`}
+          <BookNowButton
+            href={`/${locale}/airports/${slug}/book?service=${serviceSlug}`}
+            serviceSlug={serviceSlug}
+            serviceName={serviceName}
+            airportSlug={slug}
             className="inline-flex items-center gap-2 px-8 py-4 bg-brand-gold text-brand-black font-bold rounded-xl hover:bg-brand-gold-light transition-colors text-lg"
           >
             Book Now →
-          </Link>
+          </BookNowButton>
         </div>
       </section>
 
