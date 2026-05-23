@@ -11,6 +11,7 @@ import { bookingPaidAdminTemplate } from './templates/booking-paid-admin.js';
 import { bookingCancelAdminTemplate } from './templates/booking-cancel-admin.js';
 import { complaintAdminTemplate } from './templates/complaint-admin.js';
 import { bookingDraftReminderTemplate } from './templates/booking-draft-reminder.js';
+import { bookingSalesAlertTemplate, type SalesAlertEvent } from './templates/booking-sales-alert.js';
 
 // ── SMTP Transport ────────────────────────────────────────────────────────────
 
@@ -167,6 +168,44 @@ export async function sendBookingDraftReminderEmail(data: BookingNotificationDat
   }
 }
 
+// ── Sales notification (internal team alerts at each funnel stage) ────────────
+
+const SALES_DEFAULT_EMAIL = 'sales@airportfaster.com';
+
+function resolveSalesEmail(): string | undefined {
+  return process.env['SALES_NOTIFICATION_EMAIL'] ?? SALES_DEFAULT_EMAIL;
+}
+
+export async function sendSalesBookingAlert(
+  data: BookingNotificationData,
+  event: SalesAlertEvent,
+): Promise<void> {
+  const to = resolveSalesEmail();
+  if (!to) {
+    logger.warn({ bookingId: data.bookingId, event }, 'No sales email configured — skipping sales alert');
+    return;
+  }
+  try {
+    const template = bookingSalesAlertTemplate(data, event);
+    await sendEmail(to, template);
+    logger.info({ bookingId: data.bookingId, event, to }, 'Sales alert email sent');
+  } catch (error) {
+    logger.error({ error, bookingId: data.bookingId, event }, 'Failed to send sales alert email');
+  }
+}
+
+export async function sendSalesBookingAlertById(
+  bookingId: string,
+  event: SalesAlertEvent,
+): Promise<void> {
+  const data = await loadBookingNotificationData(bookingId);
+  if (!data) {
+    logger.warn({ bookingId, event }, 'sendSalesBookingAlertById: booking not found');
+    return;
+  }
+  await sendSalesBookingAlert(data, event);
+}
+
 // ── Admin notification on paid booking ────────────────────────────────────────
 
 async function sendBookingPaidAdminEmail(data: BookingNotificationData): Promise<void> {
@@ -237,6 +276,7 @@ export async function sendBookingPaidNotifications(bookingId: string): Promise<v
     logger.warn({ bookingId }, 'Booking has no customer email — skipping customer confirmation');
   }
   await sendBookingPaidAdminEmail(data);
+  await sendSalesBookingAlert(data, 'new_paid');
 }
 
 // ── Helper: load booking notification data ────────────────────────────────────

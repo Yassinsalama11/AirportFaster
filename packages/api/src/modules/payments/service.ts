@@ -138,6 +138,17 @@ export async function createPaymentIntentService(data: CreatePaymentIntentBody):
     },
   });
 
+  // 7. Sales alert (fire-and-forget so payment intent never blocks on email)
+  void (async () => {
+    try {
+      const { sendSalesBookingAlertById } = await import('../notifications/service.js');
+      await sendSalesBookingAlertById(booking.id, 'waiting_payment');
+    } catch (error) {
+      const { logger } = await import('../../lib/logger.js');
+      logger.error({ error, bookingId: booking.id }, 'Sales waiting-payment alert failed');
+    }
+  })();
+
   return {
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,

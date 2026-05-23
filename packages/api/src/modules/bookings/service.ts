@@ -25,6 +25,7 @@ import {
   sendBookingCancelledEmail,
   sendBookingAssignedToSupplierEmail,
   sendBookingDraftReminderEmail,
+  sendSalesBookingAlert,
 } from '../notifications/service.js';
 import type { BookingNotificationData } from '../notifications/types.js';
 
@@ -207,7 +208,10 @@ export async function createBookingService(data: CreateBookingBody): Promise<{
 
   const fullBooking = await getBookingByIdService(booking.id);
   void buildNotificationData(fullBooking)
-    .then((notificationData) => sendBookingDraftReminderEmail(notificationData))
+    .then(async (notificationData) => {
+      await sendBookingDraftReminderEmail(notificationData);
+      await sendSalesBookingAlert(notificationData, 'new_draft');
+    })
     .catch(async (error) => {
       const { logger } = await import('../../lib/logger.js');
       logger.error({ error, bookingId: booking.id }, 'Booking draft reminder dispatch failed');
