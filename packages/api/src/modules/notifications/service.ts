@@ -42,10 +42,45 @@ const FROM_ADDRESS = process.env['SMTP_FROM'] ?? 'AirportFaster <noreply@airport
 
 // ── Core send function ────────────────────────────────────────────────────────
 
+async function sendResendEmail(
+  to: string,
+  template: { subject: string; html: string; text: string },
+): Promise<void> {
+  const apiKey = process.env['RESEND_API_KEY'] ?? process.env['SMTP_PASS'];
+  if (!apiKey) {
+    throw new Error('Resend API key is not configured');
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_ADDRESS,
+      to: [to],
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    }),
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text().catch(() => '');
+    throw new Error(`Resend API error ${response.status}: ${responseText.slice(0, 500)}`);
+  }
+}
+
 async function sendEmail(
   to: string,
   template: { subject: string; html: string; text: string },
 ): Promise<void> {
+  if (process.env['RESEND_API_KEY'] || process.env['SMTP_HOST'] === 'smtp.resend.com') {
+    await sendResendEmail(to, template);
+    return;
+  }
+
   const transport = createTransport();
   await transport.sendMail({
     from: FROM_ADDRESS,
