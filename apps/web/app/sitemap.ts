@@ -59,6 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...SERVICE_SLUGS.flatMap((slug) =>
       localeEntries(`/services/${slug}`, { changeFrequency: 'weekly', priority: 0.85 }),
     ),
+    ...localeEntries('/about', { changeFrequency: 'monthly', priority: 0.8 }),
     ...localeEntries('/for-business', { changeFrequency: 'monthly', priority: 0.8 }),
     ...localeEntries('/help', { changeFrequency: 'monthly', priority: 0.7 }),
     ...localeEntries('/legal/terms', { changeFrequency: 'yearly', priority: 0.3 }),

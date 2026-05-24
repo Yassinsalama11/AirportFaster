@@ -164,6 +164,7 @@ ${airportLines || `See full list at ${BASE_URL}/en/airports`}
 - Lounge Access: ${BASE_URL}/en/services/lounge-access
 - Search & book: ${BASE_URL}/en/search
 - Manage booking: ${BASE_URL}/en/manage
+- About: ${BASE_URL}/en/about
 - For business: ${BASE_URL}/en/for-business
 - Help centre: ${BASE_URL}/en/help
 `;

@@ -30,6 +30,7 @@ AirportFaster lets travellers book premium airport services online in under two 
 - ${BASE_URL}/en/services/meet-and-greet — Meet & Greet service
 - ${BASE_URL}/en/services/lounge-access — Lounge Access service
 - ${BASE_URL}/en/search — Search and book
+- ${BASE_URL}/en/about — About AirportFaster
 - ${BASE_URL}/en/for-business — Partnerships
 
 ## Full Content
