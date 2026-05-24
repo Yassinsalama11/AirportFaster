@@ -19,6 +19,8 @@ import { breadcrumbSchema } from '@/lib/schema';
 import { localeAlternates, ogLocales } from '@/lib/seo';
 
 const BASE_URL = process.env['NEXT_PUBLIC_BASE_URL'] ?? 'https://airportfaster.com';
+const HERO_IMAGE_URL =
+  'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=85';
 
 const copy = {
   en: {
@@ -217,19 +219,13 @@ export default async function AboutPage({
               <FadeIn delay={0.1}>
                 <div className="relative overflow-hidden rounded-3xl border border-line bg-surface shadow-card">
                   <Image
-                    src="/og-image.png"
-                    alt="AirportFaster premium airport services"
+                    src={HERO_IMAGE_URL}
+                    alt="Aircraft wing above clouds during international travel"
                     width={1200}
-                    height={630}
+                    height={900}
                     priority
                     className="aspect-[4/3] h-full w-full object-cover"
                   />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-black/80 to-transparent p-6">
-                    <p className="text-sm font-semibold text-brand-off-white">
-                      {c.directAnswerTitle}
-                    </p>
-                    <p className="mt-2 text-sm leading-relaxed text-white/80">{c.directAnswer}</p>
-                  </div>
                 </div>
               </FadeIn>
             </div>
