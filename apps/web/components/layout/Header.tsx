@@ -26,6 +26,7 @@ export function Header() {
   const links = [
     { href: '/search', label: t('find_airports') },
     { href: '/services', label: t('services') },
+    { href: '/about', label: t('about') },
     { href: '/for-business', label: t('for_business') },
     { href: '/help', label: t('help') },
   ];

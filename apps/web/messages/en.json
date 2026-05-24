@@ -2,6 +2,7 @@
   "nav": {
     "find_airports": "Find Airports",
     "services": "Services",
+    "about": "About",
     "for_business": "For Business",
     "help": "Help",
     "manage_booking": "Manage Booking",
@@ -170,6 +171,7 @@
     "meet_greet": "Meet & Greet",
     "lounge_access": "Lounge Access",
     "browse_airports": "Browse Airports",
+    "about": "About us",
     "for_business": "For Business",
     "help_center": "Help Center",
     "manage_booking": "Manage Booking",

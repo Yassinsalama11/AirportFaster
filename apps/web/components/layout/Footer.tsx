@@ -73,6 +73,7 @@ export async function Footer() {
   ];
 
   const company = [
+    { label: t('about'), href: '/about' },
     { label: t('for_business'), href: '/for-business' },
     { label: t('help_center'), href: '/help' },
     { label: t('manage_booking'), href: '/manage' },

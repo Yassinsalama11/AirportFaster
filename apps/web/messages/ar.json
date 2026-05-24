@@ -2,6 +2,7 @@
   "nav": {
     "find_airports": "ابحث عن مطار",
     "services": "الخدمات",
+    "about": "من نحن",
     "for_business": "للشركات",
     "help": "المساعدة",
     "manage_booking": "إدارة الحجز",
@@ -167,6 +168,7 @@
     "meet_greet": "الاستقبال والتوديع",
     "lounge_access": "دخول الصالات",
     "browse_airports": "تصفح المطارات",
+    "about": "من نحن",
     "for_business": "للشركات",
     "help_center": "مركز المساعدة",
     "manage_booking": "إدارة الحجز",
