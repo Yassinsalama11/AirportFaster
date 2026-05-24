@@ -70,6 +70,15 @@ function blankForm(defaultServiceId: string): FormState {
   };
 }
 
+function minorToEurStr(minor: number): string {
+  return (minor / 100).toFixed(2).replace(/\.00$/, '');
+}
+
+function eurToMinor(value: string): number {
+  const num = parseFloat(value);
+  return Number.isFinite(num) ? Math.round(num * 100) : 0;
+}
+
 function ruleToForm(rule: PricingRule): FormState {
   const pp = rule.passengerPricing;
   const adultMinor = pp?.['adult'] ?? rule.basePriceMinor ?? 0;
@@ -80,12 +89,12 @@ function ruleToForm(rule: PricingRule): FormState {
     supplierId: rule.supplierId ?? '',
     mode: rule.mode,
     currency: rule.currency,
-    adultPriceMinor: adultMinor > 0 ? String(adultMinor) : '',
-    childPriceMinor: childVal != null && childVal > 0 ? String(childVal) : '',
+    adultPriceMinor: adultMinor > 0 ? minorToEurStr(adultMinor) : '',
+    childPriceMinor: childVal != null && childVal > 0 ? minorToEurStr(childVal) : '',
     childFree: childVal === 0,
-    infantPriceMinor: infantVal != null && infantVal > 0 ? String(infantVal) : '',
+    infantPriceMinor: infantVal != null && infantVal > 0 ? minorToEurStr(infantVal) : '',
     infantFree: infantVal === 0,
-    supplierCostMinor: rule.supplierCostMinor != null ? String(rule.supplierCostMinor) : '',
+    supplierCostMinor: rule.supplierCostMinor != null ? minorToEurStr(rule.supplierCostMinor) : '',
     markupType: (rule.markupType as 'percentage' | 'fixed_amount') ?? 'percentage',
     markupValue: rule.markupValue != null ? String(rule.markupValue) : '',
     validFrom: rule.validFrom ? new Date(rule.validFrom).toISOString().slice(0, 16) : '',
@@ -185,16 +194,16 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
     };
 
     if (form.mode === 'fixed') {
-      const adultMinor = parseInt(form.adultPriceMinor, 10);
+      const adultMinor = eurToMinor(form.adultPriceMinor);
       body['basePriceMinor'] = adultMinor;
       const pp: Record<string, number> = { adult: adultMinor };
       if (form.childFree) pp['child'] = 0;
-      else if (form.childPriceMinor.trim()) pp['child'] = parseInt(form.childPriceMinor, 10);
+      else if (form.childPriceMinor.trim()) pp['child'] = eurToMinor(form.childPriceMinor);
       if (form.infantFree) pp['infant'] = 0;
-      else if (form.infantPriceMinor.trim()) pp['infant'] = parseInt(form.infantPriceMinor, 10);
+      else if (form.infantPriceMinor.trim()) pp['infant'] = eurToMinor(form.infantPriceMinor);
       body['passengerPricing'] = pp;
     } else {
-      body['supplierCostMinor'] = parseInt(form.supplierCostMinor, 10);
+      body['supplierCostMinor'] = eurToMinor(form.supplierCostMinor);
       body['markupType'] = form.markupType;
       body['markupValue'] = parseFloat(form.markupValue);
     }
@@ -327,35 +336,35 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
           {/* Fixed price fields */}
           {form.mode === 'fixed' && (
             <div className="space-y-4 pt-2 border-t border-white/5">
-              <p className="text-xs text-gray-500">Prices in cents — e.g. 4500 = €45.00</p>
+              <p className="text-xs text-gray-500">Enter prices in euros — e.g. 45 or 45.50</p>
 
               <div>
-                <label className={labelClass}>Adult Price <span className="text-red-400">*</span></label>
-                <input type="number" value={form.adultPriceMinor} onChange={(e) => set('adultPriceMinor', e.target.value)} min={0} step={1} required placeholder="e.g. 4500" className={inputClass} />
+                <label className={labelClass}>Adult Price (€) <span className="text-red-400">*</span></label>
+                <input type="number" value={form.adultPriceMinor} onChange={(e) => set('adultPriceMinor', e.target.value)} min={0} step={0.01} required placeholder="45.00" className={inputClass} />
               </div>
 
               <div>
-                <label className={labelClass}>Child Price</label>
+                <label className={labelClass}>Child Price (€)</label>
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
                     <input type="checkbox" checked={form.childFree} onChange={(e) => set('childFree', e.target.checked)} className="accent-brand-gold" />
                     <span className="text-sm text-gray-300">Free</span>
                   </label>
                   {!form.childFree && (
-                    <input type="number" value={form.childPriceMinor} onChange={(e) => set('childPriceMinor', e.target.value)} min={0} step={1} placeholder="e.g. 2500 (blank = same as adult)" className={`flex-1 ${inputClass}`} />
+                    <input type="number" value={form.childPriceMinor} onChange={(e) => set('childPriceMinor', e.target.value)} min={0} step={0.01} placeholder="25.00 (blank = same as adult)" className={`flex-1 ${inputClass}`} />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className={labelClass}>Infant Price</label>
+                <label className={labelClass}>Infant Price (€)</label>
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
                     <input type="checkbox" checked={form.infantFree} onChange={(e) => set('infantFree', e.target.checked)} className="accent-brand-gold" />
                     <span className="text-sm text-gray-300">Free</span>
                   </label>
                   {!form.infantFree && (
-                    <input type="number" value={form.infantPriceMinor} onChange={(e) => set('infantPriceMinor', e.target.value)} min={0} step={1} placeholder="e.g. 0 (blank = same as adult)" className={`flex-1 ${inputClass}`} />
+                    <input type="number" value={form.infantPriceMinor} onChange={(e) => set('infantPriceMinor', e.target.value)} min={0} step={0.01} placeholder="10.00 (blank = same as adult)" className={`flex-1 ${inputClass}`} />
                   )}
                 </div>
               </div>
@@ -366,8 +375,8 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
           {form.mode === 'cost_plus_markup' && (
             <div className="space-y-4 pt-2 border-t border-white/5">
               <div>
-                <label className={labelClass}>Supplier Cost (minor units) <span className="text-red-400">*</span></label>
-                <input type="number" value={form.supplierCostMinor} onChange={(e) => set('supplierCostMinor', e.target.value)} min={0} step={1} required className={inputClass} />
+                <label className={labelClass}>Supplier Cost (€) <span className="text-red-400">*</span></label>
+                <input type="number" value={form.supplierCostMinor} onChange={(e) => set('supplierCostMinor', e.target.value)} min={0} step={0.01} required placeholder="30.00" className={inputClass} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
+import { Link } from '@/i18n/routing';
 import { Globe, Heart } from 'lucide-react';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Separator } from '@/components/ui/separator';

@@ -38,12 +38,17 @@ export function PricingRuleForm({ airportId, airportServices, suppliers = [] }: 
   const [supplierId, setSupplierId] = useState('');
   const [mode, setMode] = useState<'fixed' | 'cost_plus_markup'>('fixed');
   const currency = 'EUR';
-  const [adultPriceMinor, setAdultPriceMinor] = useState('');
-  const [childPriceMinor, setChildPriceMinor] = useState('');
+  const [adultPriceEur, setAdultPriceEur] = useState('');
+  const [childPriceEur, setChildPriceEur] = useState('');
   const [childFree, setChildFree] = useState(false);
-  const [infantPriceMinor, setInfantPriceMinor] = useState('');
+  const [infantPriceEur, setInfantPriceEur] = useState('');
   const [infantFree, setInfantFree] = useState(false);
-  const [supplierCostMinor, setSupplierCostMinor] = useState('');
+  const [supplierCostEur, setSupplierCostEur] = useState('');
+
+  function eurToMinor(value: string): number {
+    const num = parseFloat(value);
+    return Number.isFinite(num) ? Math.round(num * 100) : 0;
+  }
   const [markupType, setMarkupType] = useState<'percentage' | 'fixed_amount'>('percentage');
   const [markupValue, setMarkupValue] = useState('');
   const [validFrom, setValidFrom] = useState('');
@@ -68,22 +73,22 @@ export function PricingRuleForm({ airportId, airportServices, suppliers = [] }: 
     };
 
     if (mode === 'fixed') {
-      const adultMinor = parseInt(adultPriceMinor, 10);
+      const adultMinor = eurToMinor(adultPriceEur);
       body['basePriceMinor'] = adultMinor;
       const pp: Record<string, number> = { adult: adultMinor };
       if (childFree) {
         pp['child'] = 0;
-      } else if (childPriceMinor.trim()) {
-        pp['child'] = parseInt(childPriceMinor, 10);
+      } else if (childPriceEur.trim()) {
+        pp['child'] = eurToMinor(childPriceEur);
       }
       if (infantFree) {
         pp['infant'] = 0;
-      } else if (infantPriceMinor.trim()) {
-        pp['infant'] = parseInt(infantPriceMinor, 10);
+      } else if (infantPriceEur.trim()) {
+        pp['infant'] = eurToMinor(infantPriceEur);
       }
       body['passengerPricing'] = pp;
     } else {
-      body['supplierCostMinor'] = parseInt(supplierCostMinor, 10);
+      body['supplierCostMinor'] = eurToMinor(supplierCostEur);
       body['markupType'] = markupType;
       body['markupValue'] = parseFloat(markupValue);
     }
@@ -199,29 +204,29 @@ export function PricingRuleForm({ airportId, airportServices, suppliers = [] }: 
       {mode === 'fixed' && (
         <div className="space-y-4">
           <p className="text-xs text-gray-500">
-            Enter prices in cents — e.g. 4500 = €45.00
+            Enter prices in euros — e.g. 45 or 45.50
           </p>
 
           {/* Adult */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Adult Price <span className="text-red-400">*</span>
+              Adult Price (€) <span className="text-red-400">*</span>
             </label>
             <input
               type="number"
-              value={adultPriceMinor}
-              onChange={(e) => setAdultPriceMinor(e.target.value)}
+              value={adultPriceEur}
+              onChange={(e) => setAdultPriceEur(e.target.value)}
               min={0}
-              step={1}
+              step={0.01}
               required
-              placeholder="e.g. 4500 = £45.00"
+              placeholder="45.00"
               className="w-full px-4 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
             />
           </div>
 
           {/* Child */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Child Price</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Child Price (€)</label>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -235,11 +240,11 @@ export function PricingRuleForm({ airportId, airportServices, suppliers = [] }: 
               {!childFree && (
                 <input
                   type="number"
-                  value={childPriceMinor}
-                  onChange={(e) => setChildPriceMinor(e.target.value)}
+                  value={childPriceEur}
+                  onChange={(e) => setChildPriceEur(e.target.value)}
                   min={0}
-                  step={1}
-                  placeholder="e.g. 2500 = £25.00"
+                  step={0.01}
+                  placeholder="25.00"
                   className="flex-1 px-4 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
                 />
               )}
@@ -249,7 +254,7 @@ export function PricingRuleForm({ airportId, airportServices, suppliers = [] }: 
 
           {/* Infant */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Infant Price</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Infant Price (€)</label>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -263,11 +268,11 @@ export function PricingRuleForm({ airportId, airportServices, suppliers = [] }: 
               {!infantFree && (
                 <input
                   type="number"
-                  value={infantPriceMinor}
-                  onChange={(e) => setInfantPriceMinor(e.target.value)}
+                  value={infantPriceEur}
+                  onChange={(e) => setInfantPriceEur(e.target.value)}
                   min={0}
-                  step={1}
-                  placeholder="e.g. 0 = Free, 1000 = £10.00"
+                  step={0.01}
+                  placeholder="10.00"
                   className="flex-1 px-4 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
                 />
               )}
@@ -282,15 +287,16 @@ export function PricingRuleForm({ airportId, airportServices, suppliers = [] }: 
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Supplier Cost (minor units) <span className="text-red-400">*</span>
+              Supplier Cost (€) <span className="text-red-400">*</span>
             </label>
             <input
               type="number"
-              value={supplierCostMinor}
-              onChange={(e) => setSupplierCostMinor(e.target.value)}
+              value={supplierCostEur}
+              onChange={(e) => setSupplierCostEur(e.target.value)}
               min={0}
-              step={1}
+              step={0.01}
               required
+              placeholder="30.00"
               className="w-full px-4 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
             />
           </div>

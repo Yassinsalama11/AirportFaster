@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface SupplierData {
   id?: string;
   name?: string;
@@ -69,13 +67,12 @@ export function SupplierForm({ supplier, isNew }: Props) {
 
     try {
       const url = isNew
-        ? `${API_BASE}/api/admin/suppliers`
-        : `${API_BASE}/api/admin/suppliers/${supplier!.id}`;
+        ? `/api/admin/suppliers`
+        : `/api/admin/suppliers/${supplier!.id}`;
 
       const res = await fetch(url, {
         method: isNew ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(body),
       });
 
