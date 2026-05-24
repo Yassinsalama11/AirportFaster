@@ -43,7 +43,7 @@ const FROM_ADDRESS = process.env['SMTP_FROM'] ?? 'AirportFaster <noreply@airport
 // ── Core send function ────────────────────────────────────────────────────────
 
 async function sendResendEmail(
-  to: string,
+  to: string[],
   template: { subject: string; html: string; text: string },
 ): Promise<void> {
   const apiKey = process.env['RESEND_API_KEY'] ?? process.env['SMTP_PASS'];
@@ -59,7 +59,7 @@ async function sendResendEmail(
     },
     body: JSON.stringify({
       from: FROM_ADDRESS,
-      to: [to],
+      to,
       subject: template.subject,
       html: template.html,
       text: template.text,
@@ -70,21 +70,25 @@ async function sendResendEmail(
     const responseText = await response.text().catch(() => '');
     throw new Error(`Resend API error ${response.status}: ${responseText.slice(0, 500)}`);
   }
+
+  const result = await response.json().catch(() => undefined) as { id?: string } | undefined;
+  logger.info({ to, provider: 'resend', messageId: result?.id }, 'Email accepted by provider');
 }
 
 async function sendEmail(
-  to: string,
+  to: string | string[],
   template: { subject: string; html: string; text: string },
 ): Promise<void> {
+  const recipients = Array.isArray(to) ? to : [to];
   if (process.env['RESEND_API_KEY'] || process.env['SMTP_HOST'] === 'smtp.resend.com') {
-    await sendResendEmail(to, template);
+    await sendResendEmail(recipients, template);
     return;
   }
 
   const transport = createTransport();
   await transport.sendMail({
     from: FROM_ADDRESS,
-    to,
+    to: recipients,
     subject: template.subject,
     html: template.html,
     text: template.text,
@@ -211,16 +215,24 @@ export async function sendBookingDraftReminderEmail(data: BookingNotificationDat
 
 const SALES_DEFAULT_EMAIL = 'sales@airportfaster.com';
 
-function resolveSalesEmail(): string | undefined {
-  return process.env['SALES_NOTIFICATION_EMAIL'] ?? SALES_DEFAULT_EMAIL;
+function parseEmailList(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
+
+function resolveSalesEmails(): string[] {
+  return parseEmailList(process.env['SALES_NOTIFICATION_EMAIL'] ?? SALES_DEFAULT_EMAIL);
 }
 
 export async function sendSalesBookingAlert(
   data: BookingNotificationData,
   event: SalesAlertEvent,
 ): Promise<void> {
-  const to = resolveSalesEmail();
-  if (!to) {
+  const to = resolveSalesEmails();
+  if (to.length === 0) {
     logger.warn({ bookingId: data.bookingId, event }, 'No sales email configured — skipping sales alert');
     return;
   }
@@ -246,8 +258,8 @@ export async function sendSalesBookingAlertById(
 }
 
 export async function sendSalesLeadNotification(data: SalesLeadNotificationData): Promise<boolean> {
-  const to = resolveSalesEmail();
-  if (!to) {
+  const to = resolveSalesEmails();
+  if (to.length === 0) {
     logger.warn({ email: data.email }, 'No sales email configured — skipping sales lead notification');
     return false;
   }
@@ -258,7 +270,7 @@ export async function sendSalesLeadNotification(data: SalesLeadNotificationData)
     await logNotification({
       channel: NotificationChannel.Email,
       type: NotificationType.SalesLead,
-      recipient: to,
+      recipient: to.join(','),
       success: true,
     });
     logger.info({ email: data.email, company: data.company, to }, 'Sales lead email sent');
@@ -269,7 +281,7 @@ export async function sendSalesLeadNotification(data: SalesLeadNotificationData)
     await logNotification({
       channel: NotificationChannel.Email,
       type: NotificationType.SalesLead,
-      recipient: to,
+      recipient: to.join(','),
       success: false,
       error: errorMessage,
     }).catch(() => undefined);
