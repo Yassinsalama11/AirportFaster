@@ -141,18 +141,11 @@ export async function publicRoutes(fastify: FastifyInstance): Promise<void> {
       });
     }
 
-    const sent = await sendSalesLeadNotification({
+    void sendSalesLeadNotification({
       ...body.data,
       sourcePath: body.data.sourcePath ?? request.headers.referer,
       userAgent: request.headers['user-agent'],
     });
-
-    if (!sent) {
-      return reply.status(502).send({
-        success: false,
-        error: { code: 'EMAIL_SEND_FAILED', message: 'Contact form could not be sent' },
-      });
-    }
 
     return reply.status(200).send({ success: true, data: { received: true } });
   });

@@ -32,6 +32,9 @@ function createTransport() {
     port: port ? parseInt(port, 10) : 587,
     secure: port === '465',
     auth: user && pass ? { user, pass } : undefined,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
 }
 
