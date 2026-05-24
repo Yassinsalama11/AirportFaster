@@ -27,30 +27,31 @@ export function PartnersSection({
   description: string;
 }) {
   return (
-    <section className="py-20 lg:py-24 bg-surface-2 border-y border-line">
+    <section className="py-16 lg:py-20 bg-surface-2 border-y border-line">
       <div className="max-w-7xl mx-auto px-5 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <p className="text-xs uppercase tracking-[0.18em] font-semibold text-brand-gold mb-3">
+        <div className="text-center max-w-2xl mx-auto mb-10 lg:mb-12">
+          <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-brand-gold mb-3">
             {eyebrow}
           </p>
-          <h2 className="text-3xl lg:text-4xl font-bold text-ink tracking-tight mb-4">
+          <h2 className="text-2xl lg:text-[28px] font-bold text-ink tracking-tight mb-3 leading-tight">
             {title}
           </h2>
-          <p className="text-ink-2 text-base lg:text-lg">{description}</p>
+          <p className="text-ink-2 text-sm lg:text-base">{description}</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10 lg:gap-x-12 lg:gap-y-12 items-center justify-items-center">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 lg:gap-6 overflow-x-auto -mx-2 px-2">
           {PARTNERS.map((partner) => (
             <div
               key={partner.name}
-              className="flex items-center justify-center w-full h-20 lg:h-24 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+              className="flex-shrink-0 flex items-center justify-center w-20 h-10 sm:w-24 sm:h-12 lg:w-28 lg:h-14 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+              title={partner.name}
             >
               <Image
                 src={partner.logo}
                 alt={partner.name}
                 width={partner.width}
                 height={partner.height}
-                className="max-h-full w-auto object-contain"
+                className="max-h-full max-w-full object-contain"
                 loading="lazy"
               />
             </div>
