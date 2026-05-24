@@ -42,6 +42,15 @@ const FROM_ADDRESS = process.env['SMTP_FROM'] ?? 'AirportFaster <noreply@airport
 
 // ── Core send function ────────────────────────────────────────────────────────
 
+function parseAddress(value: string): { address: string; name?: string } {
+  const match = value.match(/^(.*)<([^>]+)>$/);
+  if (!match) return { address: value.trim() };
+
+  const name = match[1]?.trim().replace(/^["']|["']$/g, '');
+  const address = match[2]?.trim() ?? value.trim();
+  return name ? { address, name } : { address };
+}
+
 async function sendResendEmail(
   to: string[],
   template: { subject: string; html: string; text: string },
@@ -75,11 +84,50 @@ async function sendResendEmail(
   logger.info({ to, provider: 'resend', messageId: result?.id }, 'Email accepted by provider');
 }
 
+async function sendZeptoMailEmail(
+  to: string[],
+  template: { subject: string; html: string; text: string },
+): Promise<void> {
+  const apiKey = process.env['ZEPTOMAIL_API_KEY'] ?? process.env['SMTP_PASS'];
+  if (!apiKey) {
+    throw new Error('Zepto Mail API key is not configured');
+  }
+
+  const response = await fetch('https://api.zeptomail.com/v1.1/email', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Zoho-enczapikey ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: parseAddress(FROM_ADDRESS),
+      to: to.map((address) => ({ email_address: { address } })),
+      subject: template.subject,
+      htmlbody: template.html,
+      textbody: template.text,
+    }),
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text().catch(() => '');
+    throw new Error(`Zepto Mail API error ${response.status}: ${responseText.slice(0, 500)}`);
+  }
+
+  const result = await response.json().catch(() => undefined) as { request_id?: string } | undefined;
+  logger.info({ to, provider: 'zeptomail', messageId: result?.request_id }, 'Email accepted by provider');
+}
+
 async function sendEmail(
   to: string | string[],
   template: { subject: string; html: string; text: string },
 ): Promise<void> {
   const recipients = Array.isArray(to) ? to : [to];
+  if (process.env['ZEPTOMAIL_API_KEY'] || process.env['SMTP_HOST'] === 'smtp.zeptomail.com') {
+    await sendZeptoMailEmail(recipients, template);
+    return;
+  }
+
   if (process.env['RESEND_API_KEY'] || process.env['SMTP_HOST'] === 'smtp.resend.com') {
     await sendResendEmail(recipients, template);
     return;
