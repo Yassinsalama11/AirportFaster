@@ -3,7 +3,7 @@ import { prisma } from '@airportfaster/db';
 import { logger } from '../../lib/logger.js';
 import { logNotification } from './repository.js';
 import { NotificationChannel, NotificationType } from './types.js';
-import type { BookingNotificationData } from './types.js';
+import type { BookingNotificationData, SalesLeadNotificationData } from './types.js';
 import { bookingConfirmedTemplate } from './templates/booking-confirmed.js';
 import { bookingCancelledTemplate } from './templates/booking-cancelled.js';
 import { bookingAssignedTemplate } from './templates/booking-assigned.js';
@@ -12,6 +12,7 @@ import { bookingCancelAdminTemplate } from './templates/booking-cancel-admin.js'
 import { complaintAdminTemplate } from './templates/complaint-admin.js';
 import { bookingDraftReminderTemplate } from './templates/booking-draft-reminder.js';
 import { bookingSalesAlertTemplate, type SalesAlertEvent } from './templates/booking-sales-alert.js';
+import { salesLeadTemplate } from './templates/sales-lead.js';
 
 // ── SMTP Transport ────────────────────────────────────────────────────────────
 
@@ -204,6 +205,38 @@ export async function sendSalesBookingAlertById(
     return;
   }
   await sendSalesBookingAlert(data, event);
+}
+
+export async function sendSalesLeadNotification(data: SalesLeadNotificationData): Promise<boolean> {
+  const to = resolveSalesEmail();
+  if (!to) {
+    logger.warn({ email: data.email }, 'No sales email configured — skipping sales lead notification');
+    return false;
+  }
+
+  try {
+    const template = salesLeadTemplate(data);
+    await sendEmail(to, template);
+    await logNotification({
+      channel: NotificationChannel.Email,
+      type: NotificationType.SalesLead,
+      recipient: to,
+      success: true,
+    });
+    logger.info({ email: data.email, company: data.company, to }, 'Sales lead email sent');
+    return true;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error({ error, email: data.email, company: data.company }, 'Failed to send sales lead email');
+    await logNotification({
+      channel: NotificationChannel.Email,
+      type: NotificationType.SalesLead,
+      recipient: to,
+      success: false,
+      error: errorMessage,
+    }).catch(() => undefined);
+    return false;
+  }
 }
 
 // ── Admin notification on paid booking ────────────────────────────────────────

@@ -10,6 +10,7 @@ export enum NotificationType {
   BookingCancelled = 'booking_cancelled',
   BookingAssigned = 'booking_assigned',
   BookingDraftReminder = 'booking_draft_reminder',
+  SalesLead = 'sales_lead',
 }
 
 // ── Data types ────────────────────────────────────────────────────────────────
@@ -28,6 +29,15 @@ export interface BookingNotificationData {
   currency: string;
   supplierName?: string;
   supplierContactEmail?: string;
+}
+
+export interface SalesLeadNotificationData {
+  name: string;
+  company: string;
+  email: string;
+  message: string;
+  sourcePath?: string;
+  userAgent?: string;
 }
 
 export interface NotificationResult {

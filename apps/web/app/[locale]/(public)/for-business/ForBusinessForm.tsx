@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { trackGenerateLead } from '@/lib/analytics';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface FormState { name: string; company: string; email: string; message: string; }
 interface SubmitState { status: 'idle' | 'submitting' | 'success' | 'error'; errorMessage?: string; }
 
@@ -22,10 +20,13 @@ export function ForBusinessForm() {
     e.preventDefault();
     setSubmit({ status: 'submitting' });
     try {
-      const res = await fetch(`${API_BASE}/api/public/contact`, {
+      const res = await fetch('/api/public/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          sourcePath: window.location.pathname,
+        }),
       });
       if (!res.ok) throw new Error('Request failed');
       trackGenerateLead('business');

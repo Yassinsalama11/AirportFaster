@@ -62,7 +62,7 @@ Key facts:
 - Instant booking confirmation, no waiting
 - All major credit and debit cards accepted
 - Customer support: support@airportfaster.com
-- Business partnerships: business@airportfaster.com
+- Business partnerships: sales@airportfaster.com
 - Facebook: https://www.facebook.com/airportfaster
 - X / Twitter: https://x.com/airportfaster
 - LinkedIn: https://www.linkedin.com/company/airportfaster
@@ -146,7 +146,7 @@ AirportFaster partners with airports, airlines, online travel agencies (OTAs), a
 - **Corporate travel managers**: Centralised billing, reporting, dedicated account manager
 - **OTAs**: API integration to add airport services to your booking flow
 
-Contact for partnerships: business@airportfaster.com
+Contact for partnerships: sales@airportfaster.com
 Partnership page: ${BASE_URL}/en/for-business
 
 ## Supported Airports

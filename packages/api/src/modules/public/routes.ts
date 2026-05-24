@@ -1,10 +1,19 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@airportfaster/db';
 import { z } from 'zod';
+import { sendSalesLeadNotification } from '../notifications/service.js';
 
 const PublicAirportsQuerySchema = z.object({
   featured: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+const PublicContactSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  company: z.string().trim().min(1).max(160),
+  email: z.string().trim().email().max(255),
+  message: z.string().trim().min(1).max(5000),
+  sourcePath: z.string().trim().max(500).optional(),
 });
 
 const publicAirportListInclude = {
@@ -122,9 +131,29 @@ export async function publicRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.status(200).send({ success: true, data: { service } });
   });
 
-  // POST /api/public/contact — stub endpoint for For Business inquiry form
-  fastify.post('/contact', async (_request, reply) => {
-    // TODO: Implement email delivery when SMTP is configured
+  // POST /api/public/contact — For Business inquiry form
+  fastify.post('/contact', async (request, reply) => {
+    const body = PublicContactSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid contact form request' },
+      });
+    }
+
+    const sent = await sendSalesLeadNotification({
+      ...body.data,
+      sourcePath: body.data.sourcePath ?? request.headers.referer,
+      userAgent: request.headers['user-agent'],
+    });
+
+    if (!sent) {
+      return reply.status(502).send({
+        success: false,
+        error: { code: 'EMAIL_SEND_FAILED', message: 'Contact form could not be sent' },
+      });
+    }
+
     return reply.status(200).send({ success: true, data: { received: true } });
   });
 }
