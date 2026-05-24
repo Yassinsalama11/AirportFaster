@@ -21,6 +21,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { CookieBanner } from '@/components/public/CookieBanner';
 import { BookingComposer } from '@/components/public/BookingComposer';
+import { PartnersSection } from '@/components/public/PartnersSection';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FadeIn, FadeInStagger, FadeInItem } from '@/components/ui/fade-in';
@@ -287,6 +288,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
           </div>
         </section>
+
+        {/* ─── PARTNERS SECTION ──────────────────────────────────────── */}
+        <PartnersSection
+          eyebrow={t('partners_eyebrow')}
+          title={t('partners_title')}
+          description={t('partners_description')}
+        />
 
         {/* ─── SERVICES SECTION ──────────────────────────────────────── */}
         <section className="py-20 lg:py-28">

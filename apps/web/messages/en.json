@@ -270,7 +270,10 @@
     "faq_a4": "Yes — meet & greet is available for arrivals, departures, and connections. Your dedicated agent will be with you from the moment you land or check in.",
     "cta_title": "Your next airport\ndeserves AirportFaster.",
     "cta_sub": "Join 50,000+ travellers who skip the queues and arrive refreshed.",
-    "cta_button": "Find your airport"
+    "cta_button": "Find your airport",
+    "partners_eyebrow": "Trusted partners",
+    "partners_title": "Trusted by leading travel & hospitality brands",
+    "partners_description": "We work hand-in-hand with hotels, transport providers, and tour operators to deliver a seamless, end-to-end journey for every traveller."
   },
   "search": {
     "search_placeholder": "Search airports by name, city, or IATA…",
