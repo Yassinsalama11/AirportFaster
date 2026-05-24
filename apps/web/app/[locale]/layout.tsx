@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { PostHogProvider } from '@/components/analytics/PostHogProvider';
 import { GoogleTagManager } from '@/components/analytics/GoogleTagManager';
 import { SchemaScript } from '@/components/public/SchemaScript';
+import { WhatsAppSupportButton } from '@/components/public/WhatsAppSupportButton';
 import { SuspenseBoundary } from '@/components/SuspenseBoundary';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { routing, type Locale } from '@/i18n/routing';
@@ -125,7 +126,10 @@ export default async function LocaleLayout({
         <NextIntlClientProvider locale={locale as Locale} messages={messages}>
           <ThemeProvider>
             <SuspenseBoundary fallback={null}>
-              <PostHogProvider>{children}</PostHogProvider>
+              <PostHogProvider>
+                {children}
+                <WhatsAppSupportButton />
+              </PostHogProvider>
             </SuspenseBoundary>
           </ThemeProvider>
         </NextIntlClientProvider>
