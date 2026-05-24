@@ -142,6 +142,8 @@ function getErr(errors: FieldErrorMap, key: string): string | undefined {
 function validateForm(data: BookingFormData, requiredMsg: string, emailMsg: string): FieldErrorMap {
   const errors: FieldErrorMap = {};
 
+  // Service date is derived from flight.dateTime — validate the source field.
+  if (!data.flight.dateTime.trim()) errors['flight_dateTime'] = requiredMsg;
   if (!data.serviceDate.trim()) errors['serviceDate'] = requiredMsg;
 
   data.passengers.forEach((p, i) => {
@@ -242,7 +244,24 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
   }
 
   function updateFlight(field: keyof FlightData, value: string) {
-    setForm((prev) => ({ ...prev, flight: { ...prev.flight, [field]: value } }));
+    setForm((prev) => {
+      const nextFlight = { ...prev.flight, [field]: value };
+      const next = { ...prev, flight: nextFlight };
+      // Service date is always the calendar date of the flight — never let
+      // them diverge.
+      if (field === 'dateTime' && value) {
+        next.serviceDate = value.slice(0, 10);
+      }
+      return next;
+    });
+    if (field === 'dateTime') {
+      setErrors((prev) => {
+        const nextErrors = { ...prev };
+        delete nextErrors['serviceDate'];
+        delete nextErrors['flight_dateTime'];
+        return nextErrors;
+      });
+    }
   }
 
   function handleSubmit(e: FormEvent) {
@@ -326,29 +345,6 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
             </button>
           </div>
 
-          <div className="mt-6 max-w-xs" data-field="serviceDate">
-            <Field
-              label={labels.serviceDate}
-              htmlFor="service-date"
-              error={getErr(errors, 'serviceDate')}
-            >
-              <Input
-                id="service-date"
-                type="date"
-                dir="ltr"
-                value={form.serviceDate}
-                min={getDefaultServiceDate()}
-                onChange={(e) => {
-                  setForm((prev) => ({ ...prev, serviceDate: e.target.value }));
-                  setErrors((prev) => {
-                    const next = { ...prev };
-                    delete next['serviceDate'];
-                    return next;
-                  });
-                }}
-              />
-            </Field>
-          </div>
         </Card>
 
         {/* Per-passenger details */}
@@ -569,14 +565,14 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
             <Field
               label={labels.dateTime}
               htmlFor="flight-datetime"
-              optional
-              optionalLabel={labels.optional}
+              error={getErr(errors, 'flight_dateTime')}
             >
               <Input
                 id="flight-datetime"
                 type="datetime-local"
                 dir="ltr"
                 value={form.flight.dateTime}
+                min={`${getDefaultServiceDate()}T00:00`}
                 onChange={(e) => updateFlight('dateTime', e.target.value)}
               />
             </Field>
