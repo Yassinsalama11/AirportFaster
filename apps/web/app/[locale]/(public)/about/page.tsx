@@ -140,7 +140,7 @@ export async function generateMetadata({
       title: c.metaTitle,
       description: c.metaDescription,
       url: `${BASE_URL}/${locale}/about`,
-      images: [{ url: `${BASE_URL}/og-image.png`, width: 1200, height: 630, alt: c.metaTitle }],
+      images: [{ url: HERO_IMAGE_URL, width: 1200, height: 900, alt: c.metaTitle }],
       ...ogLocales(locale),
     },
     twitter: {
