@@ -2,7 +2,10 @@
 
 import { usePathname } from 'next/navigation';
 
-const WHATSAPP_NUMBER = '441748220006';
+const WHATSAPP_NUMBER = (process.env['NEXT_PUBLIC_WHATSAPP_NUMBER'] ?? '441748220006').replace(
+  /\D/g,
+  '',
+);
 const WHATSAPP_MESSAGE = 'Hello AirportFaster, I need help with my booking.';
 
 function WhatsAppIcon() {

@@ -22,6 +22,13 @@ import { Badge } from '@/components/ui/badge';
 import { FadeIn, FadeInStagger, FadeInItem } from '@/components/ui/fade-in';
 
 const BASE_URL = process.env['NEXT_PUBLIC_BASE_URL'] ?? 'https://airportfaster.com';
+const WHATSAPP_NUMBER = (process.env['NEXT_PUBLIC_WHATSAPP_NUMBER'] ?? '441748220006').replace(
+  /\D/g,
+  '',
+);
+const WHATSAPP_HELP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+  'Hello, I need help with my AirportFaster booking',
+)}`;
 
 export async function generateMetadata({
   params,
@@ -133,7 +140,12 @@ export default async function HelpCentrePage() {
                 className="border-0 shadow-none focus-visible:ring-0 bg-transparent px-2"
                 aria-label={t('search_placeholder')}
               />
-              <Button type="submit" variant="default" size="default">
+              <Button
+                type="submit"
+                variant="gold"
+                size="default"
+                className="shrink-0 font-bold text-brand-black"
+              >
                 Search
               </Button>
             </form>
@@ -200,14 +212,14 @@ export default async function HelpCentrePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="default" size="lg" asChild>
+                <Button variant="gold" size="lg" className="font-bold text-brand-black" asChild>
                   <a href="mailto:support@airportfaster.com">
                     <Mail className="w-4 h-4" />
-                    Email support
+                    Send a message
                   </a>
                 </Button>
                 <Button variant="outline" size="lg" asChild>
-                  <a href="mailto:support@airportfaster.com">
+                  <a href={WHATSAPP_HELP_URL} target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="w-4 h-4" />
                     Live chat
                   </a>
