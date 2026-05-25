@@ -10,6 +10,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import {
+  calculatePriceMinor,
+  formatCurrency,
+  getPassengerCounts,
+  selectPricingRule,
+  type BookingPricingRule,
+} from '@/lib/booking-pricing';
+
+const BOOKING_FORM_KEY = 'airportfaster_booking_form';
+const BOOKING_SERVICE_KEY = 'airportfaster_booking_serviceId';
+const DRAFT_BOOKING_KEY = 'airportfaster_draft_booking';
+const MANAGE_TOKEN_KEY = 'airportfaster_manage_token';
 
 export interface PassengerData {
   firstName: string;
@@ -67,6 +79,7 @@ interface PassengersStepProps {
   slug: string;
   serviceId?: string | undefined;
   passengerPricing?: Record<string, number> | null;
+  pricingRules?: BookingPricingRule[] | undefined;
   prefill?: PrefillData;
   summary: SummaryProps;
   labels: {
@@ -142,6 +155,8 @@ function getErr(errors: FieldErrorMap, key: string): string | undefined {
 function validateForm(data: BookingFormData, requiredMsg: string, emailMsg: string): FieldErrorMap {
   const errors: FieldErrorMap = {};
 
+  if (!data.flight.direction) errors['flight_direction'] = 'Please select arrival or departure';
+
   // Service date is derived from flight.dateTime — validate the source field.
   if (!data.flight.dateTime.trim()) errors['flight_dateTime'] = requiredMsg;
   if (!data.serviceDate.trim()) errors['serviceDate'] = requiredMsg;
@@ -161,6 +176,23 @@ function validateForm(data: BookingFormData, requiredMsg: string, emailMsg: stri
   if (!data.contact.lastName.trim()) errors['contact_lastName'] = requiredMsg;
 
   return errors;
+}
+
+function safeSessionSet(key: string, value: string): boolean {
+  try {
+    sessionStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeSessionRemove(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Ignore unavailable sessionStorage.
+  }
 }
 
 interface FieldProps {
@@ -188,7 +220,15 @@ function Field({ label, htmlFor, error, optional, optionalLabel, children }: Fie
 const selectClass =
   'flex h-11 w-full rounded-full border border-line bg-surface px-5 py-2 text-sm text-ink transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:border-transparent';
 
-export function PassengersStep({ slug, serviceId, passengerPricing, prefill, summary, labels }: PassengersStepProps) {
+export function PassengersStep({
+  slug,
+  serviceId,
+  passengerPricing,
+  pricingRules,
+  prefill,
+  summary,
+  labels,
+}: PassengersStepProps) {
   const router = useRouter();
   const [form, setForm] = useState<BookingFormData>(() => {
     const base = createDefaultForm();
@@ -261,6 +301,12 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
         delete nextErrors['flight_dateTime'];
         return nextErrors;
       });
+    } else if (field === 'direction') {
+      setErrors((prev) => {
+        const nextErrors = { ...prev };
+        delete nextErrors['flight_direction'];
+        return nextErrors;
+      });
     }
   }
 
@@ -280,29 +326,35 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
       return;
     }
 
-    sessionStorage.setItem('airportfaster_booking_form', JSON.stringify(form));
-    if (serviceId) {
-      sessionStorage.setItem('airportfaster_booking_serviceId', serviceId);
+    if (!safeSessionSet(BOOKING_FORM_KEY, JSON.stringify(form))) {
+      setSubmitError('Your browser blocked booking storage. Please disable private browsing or try another browser.');
+      return;
     }
-    sessionStorage.removeItem('airportfaster_draft_booking');
-    sessionStorage.removeItem('airportfaster_manage_token');
+    if (serviceId) {
+      safeSessionSet(BOOKING_SERVICE_KEY, serviceId);
+    }
+    safeSessionRemove(DRAFT_BOOKING_KEY);
+    safeSessionRemove(MANAGE_TOKEN_KEY);
 
     router.push(`/airports/${slug}/book/review${serviceId ? `?serviceId=${serviceId}` : ''}`);
   }
 
-  const pp = passengerPricing;
+  const selectedRule = selectPricingRule(pricingRules, form.flight.direction);
+  const pp = selectedRule?.passengerPricing ?? passengerPricing;
   const hasPerTypePricing = pp != null && ('adult' in pp || 'child' in pp || 'infant' in pp);
-  const liveTotalMinor = hasPerTypePricing && pp != null
-    ? form.passengers.reduce((sum, p) => {
-        const adultMinor = pp['adult'] ?? 0;
-        const typeMinor = p.type === 'child'
-          ? (pp['child'] != null ? pp['child'] : adultMinor)
-          : p.type === 'infant'
-            ? (pp['infant'] != null ? pp['infant'] : adultMinor)
-            : adultMinor;
-        return sum + typeMinor;
-      }, 0)
+  const fallbackFlatRule: BookingPricingRule | null = hasPerTypePricing
+    ? {
+        basePriceMinor: pp?.['adult'] ?? 0,
+        currency: summary.pricingCurrency ?? 'EUR',
+        pricingModel: 'flat_per_type',
+        passengerPricing: pp,
+      }
     : null;
+  const liveRule = selectedRule ?? fallbackFlatRule;
+  const liveTotalMinor = liveRule
+    ? calculatePriceMinor(liveRule, getPassengerCounts(form.passengers))
+    : null;
+  const liveCurrency = liveRule?.currency ?? summary.pricingCurrency ?? 'EUR';
 
   const trustItems = [
     { icon: Shield, label: labels.trustSecure },
@@ -523,7 +575,6 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
               {form.passengers.length + 3}
             </span>
             {labels.sectionFlight}
-            <span className="text-xs text-ink-3 font-normal">({labels.optional})</span>
           </h2>
           <p className="text-sm text-ink-3 mb-5 ms-10">{labels.sectionFlightHelp}</p>
 
@@ -531,11 +582,11 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
             <Field
               label={labels.direction}
               htmlFor="flight-direction"
-              optional
-              optionalLabel={labels.optional}
+              error={getErr(errors, 'flight_direction')}
             >
               <select
                 id="flight-direction"
+                data-field="flight_direction"
                 value={form.flight.direction}
                 onChange={(e) => updateFlight('direction', e.target.value)}
                 className={selectClass}
@@ -677,12 +728,12 @@ export function PassengersStep({ slug, serviceId, passengerPricing, prefill, sum
               </p>
             </div>
 
-            {(hasPerTypePricing && liveTotalMinor != null) ? (
+            {liveTotalMinor != null ? (
               <div className="pt-3 border-t border-line">
                 <div className="flex items-end justify-between">
                   <p className="text-xs text-ink-3">Total</p>
                   <p className="text-2xl font-bold text-brand-gold-dark" dir="ltr">
-                    €{(liveTotalMinor / 100).toFixed(0)}
+                    {formatCurrency(liveTotalMinor, liveCurrency)}
                   </p>
                 </div>
               </div>

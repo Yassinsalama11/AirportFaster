@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { formatCurrency } from '@/lib/booking-pricing';
 
 interface AirportService {
   id: string;
@@ -161,10 +162,8 @@ function getServiceLabel(as: AirportService): string {
   return t?.name ?? as.service?.slug ?? as.id.slice(0, 8);
 }
 
-function formatPrice(minor: number | null, _currency: string): string {
-  if (minor == null) return '—';
-  // Platform-wide: always show Euros regardless of per-record currency.
-  return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(minor / 100);
+function formatPrice(minor: number | null, currency: string): string {
+  return formatCurrency(minor, currency);
 }
 
 const inputClass = 'w-full px-4 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none';
@@ -573,7 +572,7 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
           {form.mode === 'cost_plus_markup' && (
             <div className="space-y-4 pt-2 border-t border-white/5">
               <div>
-                <label className={labelClass}>Supplier Cost (€) <span className="text-red-400">*</span></label>
+                <label className={labelClass}>Supplier Cost ({form.currency || 'currency'}) <span className="text-red-400">*</span></label>
                 <input type="number" value={form.supplierCostMinor} onChange={(e) => set('supplierCostMinor', e.target.value)} min={0} step={0.01} required placeholder="30.00" className={inputClass} />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -586,7 +585,7 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
                 </div>
                 <div>
                   <label className={labelClass}>Markup Value <span className="text-red-400">*</span></label>
-                  <input type="number" value={form.markupValue} onChange={(e) => set('markupValue', e.target.value)} min={0} step={0.01} required placeholder={form.markupType === 'percentage' ? '20' : '500'} className={inputClass} />
+                  <input type="number" value={form.markupValue} onChange={(e) => set('markupValue', e.target.value)} min={0} step={0.01} required placeholder={form.markupType === 'percentage' ? '20' : '5.00'} className={inputClass} />
                 </div>
               </div>
             </div>
@@ -677,11 +676,11 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
                             )}
                           </span>
                         ) : formatPrice(rule.basePriceMinor, rule.currency)}
-                        {' '}<span className="text-gray-500 text-xs">EUR</span>
+                        {' '}<span className="text-gray-500 text-xs">{rule.currency}</span>
                       </div>
                     ) : (
                       <div className="text-sm text-gray-300 font-mono">
-                        Cost {formatPrice(rule.supplierCostMinor, rule.currency)} + {rule.markupValue}{rule.markupType === 'percentage' ? '%' : ' EUR'}
+                        Cost {formatPrice(rule.supplierCostMinor, rule.currency)} + {rule.markupValue}{rule.markupType === 'percentage' ? '%' : ` ${rule.currency}`}
                       </div>
                     )}
 

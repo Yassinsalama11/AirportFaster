@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { BookingStepIndicator } from '@/components/public/booking/BookingStepIndicator';
 import { PassengersStep } from '@/components/public/booking/PassengersStep';
 import { BeginCheckoutTracker } from '@/components/public/BeginCheckoutTracker';
+import { formatCurrency, selectPricingRule, type BookingPricingRule } from '@/lib/booking-pricing';
 
 const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 
@@ -16,7 +17,7 @@ interface AirportService {
   id: string;
   isActive: boolean;
   service: Service;
-  pricingRules?: Array<{ basePriceMinor: number | null; currency: string; passengerPricing?: Record<string, number> | null }>;
+  pricingRules?: BookingPricingRule[];
 }
 interface AirportImage {
   url: string;
@@ -112,10 +113,10 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
   const selectedAirportServiceId = selectedService?.id;
 
   const serviceName = selectedService ? getServiceName(selectedService.service, locale) : undefined;
-  const firstPrice = selectedService?.pricingRules?.[0];
+  const firstPrice = selectPricingRule(selectedService?.pricingRules);
   const primaryImage = airport.images?.find((image) => image.isPrimary) ?? airport.images?.[0];
   const fromPriceDisplay = firstPrice?.basePriceMinor != null
-    ? `€${(firstPrice.basePriceMinor / 100).toFixed(0)}`
+    ? formatCurrency(firstPrice.basePriceMinor, firstPrice.currency)
     : undefined;
 
   return (
@@ -158,6 +159,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
         slug={slug}
         {...(selectedAirportServiceId !== undefined && { serviceId: selectedAirportServiceId })}
         {...(firstPrice?.passengerPricing != null && { passengerPricing: firstPrice.passengerPricing })}
+        {...(selectedService?.pricingRules != null && { pricingRules: selectedService.pricingRules })}
         {...(Object.keys(prefill).length > 0 && { prefill })}
         summary={{
           ...(serviceName && { serviceName }),
@@ -168,7 +170,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           ...(fromPriceDisplay && { fromPriceDisplay }),
           ...(primaryImage?.url && { imageUrl: primaryImage.url }),
           ...(primaryImage?.altText && { imageAlt: primaryImage.altText }),
-          pricingCurrency: '€',
+          pricingCurrency: firstPrice?.currency ?? 'EUR',
           imgVariant: 2,
         }}
         labels={{

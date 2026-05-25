@@ -4,14 +4,19 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import type { BookingFormData } from './PassengersStep';
+import {
+  calculatePriceMinor,
+  formatCurrency,
+  getPassengerCounts,
+  selectPricingRule,
+  type BookingPricingRule,
+} from '@/lib/booking-pricing';
 
 const API_BASE = '/api/public';
-
-interface PricingRule {
-  basePriceMinor: number | null;
-  currency: string;
-  passengerPricing?: Record<string, number> | null;
-}
+const BOOKING_FORM_KEY = 'airportfaster_booking_form';
+const BOOKING_SERVICE_KEY = 'airportfaster_booking_serviceId';
+const DRAFT_BOOKING_KEY = 'airportfaster_draft_booking';
+const MANAGE_TOKEN_KEY = 'airportfaster_manage_token';
 
 interface ReviewStepProps {
   slug: string;
@@ -21,7 +26,7 @@ interface ReviewStepProps {
   country: string;
   serviceId?: string;
   serviceName?: string;
-  pricingRules?: PricingRule[];
+  pricingRules?: BookingPricingRule[];
 }
 
 interface CreateBookingResponse {
@@ -59,14 +64,33 @@ function formatDateTime(dt: string): string {
   }
 }
 
-function formatCurrency(amount: number, _currency: string): string {
-  // Platform-wide: always show Euros regardless of the per-record currency.
-  return `€${amount.toFixed(2)}`;
-}
-
 function trimOrUndefined(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function safeSessionGet(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSessionSet(key: string, value: string): void {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // Ignore unavailable sessionStorage; the booking can still proceed.
+  }
+}
+
+function safeSessionRemove(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Ignore unavailable sessionStorage.
+  }
 }
 
 function getApiErrorMessage(data: CreateBookingResponse): string {
@@ -113,7 +137,7 @@ export function ReviewStep({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('airportfaster_booking_form');
+    const stored = safeSessionGet(BOOKING_FORM_KEY);
     if (!stored) {
       // No form data — redirect back to details
       router.replace(`/${locale}/airports/${slug}/book${serviceId ? `?serviceId=${serviceId}` : ''}`);
@@ -140,7 +164,7 @@ export function ReviewStep({
       setDraftLoading(true);
       setError(null);
 
-      const storedDraft = sessionStorage.getItem('airportfaster_draft_booking');
+      const storedDraft = safeSessionGet(DRAFT_BOOKING_KEY);
       if (storedDraft) {
         try {
           const parsed = JSON.parse(storedDraft) as DraftBookingSession;
@@ -150,7 +174,7 @@ export function ReviewStep({
             return;
           }
         } catch {
-          sessionStorage.removeItem('airportfaster_draft_booking');
+          safeSessionRemove(DRAFT_BOOKING_KEY);
         }
       }
 
@@ -159,10 +183,13 @@ export function ReviewStep({
           throw new Error('Please go back and choose a service date.');
         }
 
-        const flightDirection = currentForm.flight.direction || 'departure';
+        if (!currentForm.flight.direction) {
+          throw new Error('Please go back and select arrival or departure.');
+        }
+
+        const flightDirection = currentForm.flight.direction;
         const iata = currentForm.flight.originDestIata.trim().toUpperCase();
         const shouldSendFlight =
-          currentForm.flight.direction !== '' &&
           currentForm.flight.flightNumber.trim() !== '' &&
           currentForm.flight.dateTime.trim() !== '';
 
@@ -231,9 +258,9 @@ export function ReviewStep({
         };
 
         if (data.data?.manageToken) {
-          sessionStorage.setItem('airportfaster_manage_token', data.data.manageToken);
+          safeSessionSet(MANAGE_TOKEN_KEY, data.data.manageToken);
         }
-        sessionStorage.setItem('airportfaster_draft_booking', JSON.stringify(draft));
+        safeSessionSet(DRAFT_BOOKING_KEY, JSON.stringify(draft));
         if (!cancelled) setDraftBooking(draft);
       } catch (err: unknown) {
         if (!cancelled) {
@@ -259,58 +286,12 @@ export function ReviewStep({
     );
   }
 
-  // Price calculation
-  const baseRule = pricingRules && pricingRules.length > 0
-    ? [...pricingRules].sort((a, b) => (a.basePriceMinor ?? 0) - (b.basePriceMinor ?? 0))[0]
-    : null;
-
+  const baseRule = selectPricingRule(pricingRules, form.flight.direction);
   const currency = baseRule?.currency ?? 'EUR';
-  const pp = baseRule?.passengerPricing;
-  const hasPerType = pp != null && ('adult' in pp || 'child' in pp || 'infant' in pp);
-
-  interface PassengerBreakdownLine {
-    label: string;
-    count: number;
-    unitPrice: number;
-    lineTotal: number;
-  }
-  let subtotal = 0;
-  let perTypeBreakdown: PassengerBreakdownLine[] = [];
-
-  if (hasPerType && pp != null) {
-    const adultPriceMinor = pp['adult'] ?? baseRule?.basePriceMinor ?? 0;
-    const childPriceMinor = pp['child'] != null ? pp['child'] : adultPriceMinor;
-    const infantPriceMinor = pp['infant'] != null ? pp['infant'] : adultPriceMinor;
-    const counts = { adult: 0, child: 0, infant: 0 };
-    form.passengers.forEach((p) => {
-      if (p.type === 'adult') counts.adult++;
-      else if (p.type === 'child') counts.child++;
-      else if (p.type === 'infant') counts.infant++;
-    });
-    const lines: PassengerBreakdownLine[] = [];
-    if (counts.adult > 0) {
-      const lineTotal = (adultPriceMinor / 100) * counts.adult;
-      subtotal += lineTotal;
-      lines.push({ label: 'Adult', count: counts.adult, unitPrice: adultPriceMinor / 100, lineTotal });
-    }
-    if (counts.child > 0) {
-      const lineTotal = (childPriceMinor / 100) * counts.child;
-      subtotal += lineTotal;
-      lines.push({ label: 'Child', count: counts.child, unitPrice: childPriceMinor / 100, lineTotal });
-    }
-    if (counts.infant > 0) {
-      const lineTotal = (infantPriceMinor / 100) * counts.infant;
-      subtotal += lineTotal;
-      lines.push({ label: 'Infant', count: counts.infant, unitPrice: infantPriceMinor / 100, lineTotal });
-    }
-    perTypeBreakdown = lines;
-  } else {
-    const basePrice = (baseRule?.basePriceMinor ?? 0) / 100;
-    subtotal = basePrice * form.passengerCount;
-  }
-
-  const serviceFee = subtotal > 0 ? parseFloat((subtotal * 0.05).toFixed(2)) : 0;
-  const total = subtotal + serviceFee;
+  const passengerCounts = getPassengerCounts(form.passengers);
+  const subtotalMinor = calculatePriceMinor(baseRule, passengerCounts);
+  const serviceFeeMinor = subtotalMinor > 0 ? Math.round(subtotalMinor * 0.05) : 0;
+  const totalMinor = subtotalMinor + serviceFeeMinor;
 
   async function handleConfirm() {
     if (!form) return;
@@ -324,8 +305,9 @@ export function ReviewStep({
       if (!draftBooking) {
         throw new Error('Your draft booking is still being prepared. Please try again.');
       }
-      sessionStorage.removeItem('airportfaster_booking_form');
-      sessionStorage.removeItem('airportfaster_booking_serviceId');
+      safeSessionRemove(BOOKING_FORM_KEY);
+      safeSessionRemove(BOOKING_SERVICE_KEY);
+      safeSessionRemove(DRAFT_BOOKING_KEY);
 
       router.push(
         `/${locale}/book/${draftBooking.bookingId}/payment?currency=${encodeURIComponent(draftBooking.currency)}&ref=${encodeURIComponent(draftBooking.bookingReference)}`,
@@ -404,30 +386,16 @@ export function ReviewStep({
       {/* Price breakdown */}
       <section className="bg-surface border border-line rounded-2xl p-6">
         <SectionTitle>Price Summary</SectionTitle>
-        {subtotal > 0 ? (
+        {subtotalMinor > 0 ? (
           <div className="space-y-0">
-            {hasPerType ? (
-              perTypeBreakdown.map((line) => (
-                <Row
-                  key={line.label}
-                  label={
-                    line.unitPrice === 0
-                      ? `${line.label} × ${line.count} (Free)`
-                      : `${line.label} × ${line.count} (${formatCurrency(line.unitPrice, currency)} each)`
-                  }
-                  value={line.unitPrice === 0 ? 'Free' : formatCurrency(line.lineTotal, currency)}
-                />
-              ))
-            ) : (
-              <Row
-                label={`Base price × ${form.passengerCount} passenger${form.passengerCount !== 1 ? 's' : ''}`}
-                value={formatCurrency(subtotal, currency)}
-              />
-            )}
-            <Row label="Service fee (5%)" value={formatCurrency(serviceFee, currency)} />
+            <Row
+              label={`Service price × ${form.passengerCount} passenger${form.passengerCount !== 1 ? 's' : ''}`}
+              value={formatCurrency(subtotalMinor, currency)}
+            />
+            <Row label="Service fee (5%)" value={formatCurrency(serviceFeeMinor, currency)} />
             <div className="flex items-center justify-between pt-3 mt-1">
               <span className="text-base font-bold text-ink">Total</span>
-              <span className="text-xl font-bold text-brand-gold">{formatCurrency(total, currency)}</span>
+              <span className="text-xl font-bold text-brand-gold">{formatCurrency(totalMinor, currency)}</span>
             </div>
           </div>
         ) : (

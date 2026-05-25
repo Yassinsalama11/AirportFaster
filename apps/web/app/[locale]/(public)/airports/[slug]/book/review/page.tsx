@@ -5,18 +5,18 @@ import { getTranslations } from 'next-intl/server';
 import { ChevronRight } from 'lucide-react';
 import { BookingStepIndicator } from '@/components/public/booking/BookingStepIndicator';
 import { ReviewStep } from '@/components/public/booking/ReviewStep';
+import type { BookingPricingRule } from '@/lib/booking-pricing';
 
 const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 
 interface AirportTranslation { locale: string; name: string; }
 interface ServiceTranslation { locale: string; name: string; }
-interface PricingRule { basePriceMinor: number | null; currency: string; passengerPricing?: Record<string, number> | null; }
 interface Service { id: string; slug: string; translations: ServiceTranslation[]; }
 interface AirportService {
   id: string;
   isActive: boolean;
   service: Service;
-  pricingRules?: PricingRule[];
+  pricingRules?: BookingPricingRule[];
 }
 interface Airport {
   id: string;
