@@ -146,13 +146,13 @@ model Airport {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 
-  translations        AirportTranslation[]
-  images              AirportImage[]
-  seo                 AirportSeo?
-  airportServices     AirportService[]
-  pages               Page[]
-  supplierAirports    SupplierAirport[]
-  supplierSchedules   SupplierScheduleLink[]
+  translations      AirportTranslation[]
+  images            AirportImage[]
+  seo               AirportSeo?
+  airportServices   AirportService[]
+  pages             Page[]
+  supplierAirports  SupplierAirport[]
+  supplierSchedules SupplierScheduleLink[]
 
   @@index([country])
   @@index([status])
@@ -269,24 +269,46 @@ model ServiceSeo {
 }
 
 model AirportService {
-  id               String   @id @default(uuid()) @db.Uuid
-  airportId        String   @map("airport_id") @db.Uuid
-  serviceId        String   @map("service_id") @db.Uuid
-  isActive         Boolean  @default(true) @map("is_active")
-  cutOffMinutes    Int?     @map("cut_off_minutes")
-  minNoticeMinutes Int?     @map("min_notice_minutes")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                 String           @id @default(uuid()) @db.Uuid
+  airportId          String           @map("airport_id") @db.Uuid
+  serviceId          String           @map("service_id") @db.Uuid
+  isActive           Boolean          @default(true) @map("is_active")
+  cutOffMinutes      Int?             @map("cut_off_minutes")
+  minNoticeMinutes   Int?             @map("min_notice_minutes")
+  minimumLeadHours   Int              @default(2) @map("minimum_lead_hours")
+  maxLeadDays        Int              @default(365) @map("max_lead_days")
+  directionAvailable PricingDirection @default(both) @map("direction_available")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz
 
-  airport           Airport            @relation(fields: [airportId], references: [id], onDelete: Cascade)
-  service           Service            @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  airport           Airport                     @relation(fields: [airportId], references: [id], onDelete: Cascade)
+  service           Service                     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   pricingRules      PricingRule[]
   availabilityRules AvailabilityRule[]
   supplierCoverages SupplierCoverage[]
   bookings          Booking[]
+  translations      AirportServiceTranslation[]
 
   @@unique([airportId, serviceId])
   @@map("airport_services")
+}
+
+/// Market-specific names for an airport-service combo:
+/// e.g. fast_track_vip is shown as "Diamond" in Cairo, "Elite Escort" in London.
+model AirportServiceTranslation {
+  id               String   @id @default(uuid()) @db.Uuid
+  airportServiceId String   @map("airport_service_id") @db.Uuid
+  locale           String   @db.VarChar(10)
+  name             String
+  description      String?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  airportService AirportService @relation(fields: [airportServiceId], references: [id], onDelete: Cascade)
+
+  @@unique([airportServiceId, locale])
+  @@index([airportServiceId])
+  @@map("airport_service_translations")
 }
 
 // =============================================================================
@@ -527,6 +549,29 @@ enum PricingMode {
   cost_plus_markup
 }
 
+enum PricingModel {
+  flat_per_type
+  tiered
+  group
+  duration_based
+}
+
+enum PricingDirection {
+  arrival
+  departure
+  both
+}
+
+enum DayOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
 enum MarkupType {
   percentage
   fixed_amount
@@ -548,27 +593,38 @@ enum PromoStatus {
   expired
 }
 
-/// passengerPricing JSON shape: { "1": 1.0, "2": 0.95, "3": 0.90, ... }
-/// keyed by passenger count string, value is a multiplier (1.0 = no change)
+/// passengerPricing JSON shape for `pricingModel = flat_per_type`:
+///   { "adult": 8500, "child": 4500, "infant": 0 }
+/// (minor units, keyed by passenger type)
 model PricingRule {
-  id               String            @id @default(uuid()) @db.Uuid
-  airportServiceId String            @map("airport_service_id") @db.Uuid
-  supplierId       String?           @map("supplier_id") @db.Uuid
-  mode             PricingMode
-  basePriceMinor   Int?              @map("base_price_minor")
-  supplierCostMinor Int?             @map("supplier_cost_minor")
-  markupType       MarkupType?       @map("markup_type")
-  markupValue      Decimal?          @db.Decimal(10, 4)
-  currency         String            @db.VarChar(3)
-  passengerPricing Json?             @map("passenger_pricing")
-  peakRules        Json?             @map("peak_rules")
-  validFrom        DateTime?         @map("valid_from") @db.Timestamptz
-  validTo          DateTime?         @map("valid_to") @db.Timestamptz
-  priority         Int               @default(0)
-  status           PricingRuleStatus @default(active)
-  createdById      String?           @map("created_by") @db.Uuid
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  id                     String            @id @default(uuid()) @db.Uuid
+  airportServiceId       String            @map("airport_service_id") @db.Uuid
+  supplierId             String?           @map("supplier_id") @db.Uuid
+  mode                   PricingMode
+  direction              PricingDirection  @default(both)
+  pricingModel           PricingModel      @default(flat_per_type) @map("pricing_model")
+  basePriceMinor         Int?              @map("base_price_minor")
+  // Tiered / group / duration_based extensions
+  firstPassengerMinor    Int?              @map("first_passenger_minor")
+  extraPassengerMinor    Int?              @map("extra_passenger_minor")
+  groupSizeIncluded      Int?              @map("group_size_included")
+  durationHours          Int?              @map("duration_hours")
+  // Supplier cost mirrors of the pricing-model fields for margin calculation
+  supplierCostMinor      Int?              @map("supplier_cost_minor")
+  supplierCostFirstMinor Int?              @map("supplier_cost_first_minor")
+  supplierCostExtraMinor Int?              @map("supplier_cost_extra_minor")
+  markupType             MarkupType?       @map("markup_type")
+  markupValue            Decimal?          @db.Decimal(10, 4)
+  currency               String            @db.VarChar(3)
+  passengerPricing       Json?             @map("passenger_pricing")
+  peakRules              Json?             @map("peak_rules")
+  validFrom              DateTime?         @map("valid_from") @db.Timestamptz
+  validTo                DateTime?         @map("valid_to") @db.Timestamptz
+  priority               Int               @default(0)
+  status                 PricingRuleStatus @default(active)
+  createdById            String?           @map("created_by") @db.Uuid
+  createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime          @updatedAt @map("updated_at") @db.Timestamptz
 
   airportService AirportService @relation(fields: [airportServiceId], references: [id], onDelete: Cascade)
 
@@ -589,18 +645,18 @@ model CurrencyRate {
 }
 
 model PromoCode {
-  id              String      @id @default(uuid()) @db.Uuid
-  code            String      @unique @db.VarChar(50)
+  id              String       @id @default(uuid()) @db.Uuid
+  code            String       @unique @db.VarChar(50)
   discountType    DiscountType @map("discount_type")
-  discountValue   Decimal     @db.Decimal(10, 4) @map("discount_value")
-  currency        String?     @db.VarChar(3)
-  maxRedemptions  Int?        @map("max_redemptions")
-  redemptionsUsed Int         @default(0) @map("redemptions_used")
-  validFrom       DateTime?   @map("valid_from") @db.Timestamptz
-  validTo         DateTime?   @map("valid_to") @db.Timestamptz
-  minBookingMinor Int?        @map("min_booking_minor")
-  status          PromoStatus @default(active)
-  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  discountValue   Decimal      @map("discount_value") @db.Decimal(10, 4)
+  currency        String?      @db.VarChar(3)
+  maxRedemptions  Int?         @map("max_redemptions")
+  redemptionsUsed Int          @default(0) @map("redemptions_used")
+  validFrom       DateTime?    @map("valid_from") @db.Timestamptz
+  validTo         DateTime?    @map("valid_to") @db.Timestamptz
+  minBookingMinor Int?         @map("min_booking_minor")
+  status          PromoStatus  @default(active)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("promo_codes")
 }
@@ -701,17 +757,17 @@ enum AssignmentStatus {
 }
 
 model Supplier {
-  id              String         @id @default(uuid()) @db.Uuid
-  name            String
-  legalName       String?        @map("legal_name")
-  status          SupplierStatus @default(pending)
-  countryCode     String?        @map("country_code") @db.Char(2)
-  rating          Decimal?       @db.Decimal(3, 2)
-  reliabilityScore Decimal?      @map("reliability_score") @db.Decimal(3, 2)
-  payoutCurrency  String?        @map("payout_currency") @db.VarChar(3)
-  notes           String?
-  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  id               String         @id @default(uuid()) @db.Uuid
+  name             String
+  legalName        String?        @map("legal_name")
+  status           SupplierStatus @default(pending)
+  countryCode      String?        @map("country_code") @db.Char(2)
+  rating           Decimal?       @db.Decimal(3, 2)
+  reliabilityScore Decimal?       @map("reliability_score") @db.Decimal(3, 2)
+  payoutCurrency   String?        @map("payout_currency") @db.VarChar(3)
+  notes            String?
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz
 
   contacts         SupplierContact[]
   supplierAirports SupplierAirport[]
@@ -725,22 +781,42 @@ model Supplier {
   settlementLines  SettlementLine[]
   settlements      Settlement[]
   apiKeys          ApiKey[]
+  availability     SupplierAvailability[]
 
   @@index([status])
   @@map("suppliers")
 }
 
+/// Weekly operating hours for a supplier (one row per day).
+/// openTime/closeTime are "HH:MM" 24-hour strings.
+model SupplierAvailability {
+  id          String    @id @default(uuid()) @db.Uuid
+  supplierId  String    @map("supplier_id") @db.Uuid
+  dayOfWeek   DayOfWeek @map("day_of_week")
+  openTime    String    @map("open_time") @db.VarChar(5)
+  closeTime   String    @map("close_time") @db.VarChar(5)
+  isAvailable Boolean   @default(true) @map("is_available")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, dayOfWeek])
+  @@index([supplierId])
+  @@map("supplier_availability")
+}
+
 model SupplierContact {
-  id          String   @id @default(uuid()) @db.Uuid
-  supplierId  String   @map("supplier_id") @db.Uuid
-  name        String
-  role        String?
-  email       String?
-  phone       String?
-  whatsapp    String?
-  isPrimary   Boolean  @default(false) @map("is_primary")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id         String   @id @default(uuid()) @db.Uuid
+  supplierId String   @map("supplier_id") @db.Uuid
+  name       String
+  role       String?
+  email      String?
+  phone      String?
+  whatsapp   String?
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
@@ -749,11 +825,11 @@ model SupplierContact {
 }
 
 model SupplierAirport {
-  id         String   @id @default(uuid()) @db.Uuid
-  supplierId String   @map("supplier_id") @db.Uuid
-  airportId  String   @map("airport_id") @db.Uuid
+  id         String             @id @default(uuid()) @db.Uuid
+  supplierId String             @map("supplier_id") @db.Uuid
+  airportId  String             @map("airport_id") @db.Uuid
   status     AvailabilityStatus @default(active)
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   airport  Airport  @relation(fields: [airportId], references: [id], onDelete: Cascade)
@@ -763,11 +839,11 @@ model SupplierAirport {
 }
 
 model SupplierService {
-  id         String   @id @default(uuid()) @db.Uuid
-  supplierId String   @map("supplier_id") @db.Uuid
-  serviceId  String   @map("service_id") @db.Uuid
+  id         String             @id @default(uuid()) @db.Uuid
+  supplierId String             @map("supplier_id") @db.Uuid
+  serviceId  String             @map("service_id") @db.Uuid
   status     AvailabilityStatus @default(active)
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
@@ -777,13 +853,13 @@ model SupplierService {
 }
 
 model SupplierCoverage {
-  id               String   @id @default(uuid()) @db.Uuid
-  supplierId       String   @map("supplier_id") @db.Uuid
-  airportServiceId String   @map("airport_service_id") @db.Uuid
+  id               String             @id @default(uuid()) @db.Uuid
+  supplierId       String             @map("supplier_id") @db.Uuid
+  airportServiceId String             @map("airport_service_id") @db.Uuid
   status           AvailabilityStatus @default(active)
-  priority         Int      @default(0)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  priority         Int                @default(0)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz
 
   supplier       Supplier       @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   airportService AirportService @relation(fields: [airportServiceId], references: [id], onDelete: Cascade)
@@ -813,17 +889,17 @@ model SupplierDocument {
 }
 
 model SupplierSlaMetrics {
-  id                        String   @id @default(uuid()) @db.Uuid
-  supplierId                String   @map("supplier_id") @db.Uuid
-  periodStart               DateTime @map("period_start") @db.Date
-  periodEnd                 DateTime @map("period_end") @db.Date
-  responseTimeAvgMinutes    Decimal? @map("response_time_avg_minutes") @db.Decimal(8, 2)
+  id                          String   @id @default(uuid()) @db.Uuid
+  supplierId                  String   @map("supplier_id") @db.Uuid
+  periodStart                 DateTime @map("period_start") @db.Date
+  periodEnd                   DateTime @map("period_end") @db.Date
+  responseTimeAvgMinutes      Decimal? @map("response_time_avg_minutes") @db.Decimal(8, 2)
   confirmationSpeedAvgMinutes Decimal? @map("confirmation_speed_avg_minutes") @db.Decimal(8, 2)
-  cancellationRate          Decimal? @map("cancellation_rate") @db.Decimal(5, 4)
-  noShowRate                Decimal? @map("no_show_rate") @db.Decimal(5, 4)
-  complaintRate             Decimal? @map("complaint_rate") @db.Decimal(5, 4)
-  reliabilityScore          Decimal? @map("reliability_score") @db.Decimal(3, 2)
-  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz
+  cancellationRate            Decimal? @map("cancellation_rate") @db.Decimal(5, 4)
+  noShowRate                  Decimal? @map("no_show_rate") @db.Decimal(5, 4)
+  complaintRate               Decimal? @map("complaint_rate") @db.Decimal(5, 4)
+  reliabilityScore            Decimal? @map("reliability_score") @db.Decimal(3, 2)
+  createdAt                   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
@@ -937,25 +1013,25 @@ model Customer {
 }
 
 model Booking {
-  id                 String          @id @default(uuid()) @db.Uuid
-  reference          String          @unique @db.VarChar(20)
-  customerId         String          @map("customer_id") @db.Uuid
-  airportServiceId   String          @map("airport_service_id") @db.Uuid
-  supplierId         String?         @map("supplier_id") @db.Uuid
-  corporateAccountId String?         @map("corporate_account_id") @db.Uuid
-  status             BookingStatus   @default(draft)
-  direction          BookingDirection
-  serviceDateTime    DateTime        @map("service_datetime") @db.Timestamptz
-  passengerCount     Int             @map("passenger_count")
-  specialRequests    String?         @map("special_requests")
-  locale             String?         @db.VarChar(10)
-  currency           String          @db.VarChar(3)
-  totalMinor         Int             @map("total_minor")
-  manageTokenHash    String?         @map("manage_token_hash")
-  manageTokenExpiresAt DateTime?     @map("manage_token_expires_at") @db.Timestamptz
-  source             BookingSource   @default(homepage)
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  id                   String           @id @default(uuid()) @db.Uuid
+  reference            String           @unique @db.VarChar(20)
+  customerId           String           @map("customer_id") @db.Uuid
+  airportServiceId     String           @map("airport_service_id") @db.Uuid
+  supplierId           String?          @map("supplier_id") @db.Uuid
+  corporateAccountId   String?          @map("corporate_account_id") @db.Uuid
+  status               BookingStatus    @default(draft)
+  direction            BookingDirection
+  serviceDateTime      DateTime         @map("service_datetime") @db.Timestamptz
+  passengerCount       Int              @map("passenger_count")
+  specialRequests      String?          @map("special_requests")
+  locale               String?          @db.VarChar(10)
+  currency             String           @db.VarChar(3)
+  totalMinor           Int              @map("total_minor")
+  manageTokenHash      String?          @map("manage_token_hash")
+  manageTokenExpiresAt DateTime?        @map("manage_token_expires_at") @db.Timestamptz
+  source               BookingSource    @default(homepage)
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz
 
   customer         Customer                    @relation(fields: [customerId], references: [id])
   airportService   AirportService              @relation(fields: [airportServiceId], references: [id])
@@ -994,17 +1070,17 @@ model BookingPassenger {
 }
 
 model BookingFlight {
-  id               String   @id @default(uuid()) @db.Uuid
-  bookingId        String   @map("booking_id") @db.Uuid
-  flightNumber     String   @map("flight_number") @db.VarChar(10)
-  airlineCode      String?  @map("airline_code") @db.VarChar(3)
-  scheduledTime    DateTime? @map("scheduled_time") @db.Timestamptz
-  terminal         String?
-  gate             String?
-  flightStatus     String?  @map("flight_status") @db.VarChar(30)
-  lastSyncedAt     DateTime? @map("last_synced_at") @db.Timestamptz
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id            String    @id @default(uuid()) @db.Uuid
+  bookingId     String    @map("booking_id") @db.Uuid
+  flightNumber  String    @map("flight_number") @db.VarChar(10)
+  airlineCode   String?   @map("airline_code") @db.VarChar(3)
+  scheduledTime DateTime? @map("scheduled_time") @db.Timestamptz
+  terminal      String?
+  gate          String?
+  flightStatus  String?   @map("flight_status") @db.VarChar(30)
+  lastSyncedAt  DateTime? @map("last_synced_at") @db.Timestamptz
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
@@ -1013,21 +1089,21 @@ model BookingFlight {
 }
 
 model BookingPriceSnapshot {
-  id                      String   @id @default(uuid()) @db.Uuid
-  bookingId               String   @unique @map("booking_id") @db.Uuid
-  basePriceMinor          Int      @map("base_price_minor")
-  supplierCostMinor       Int      @map("supplier_cost_minor")
-  markupMinor             Int      @map("markup_minor")
-  passengerAdjustmentMinor Int     @default(0) @map("passenger_adjustment_minor")
-  peakAdjustmentMinor     Int      @default(0) @map("peak_adjustment_minor")
-  discountMinor           Int      @default(0) @map("discount_minor")
-  taxEstimateMinor        Int      @default(0) @map("tax_estimate_minor")
-  totalMinor              Int      @map("total_minor")
-  marginMinor             Int      @map("margin_minor")
-  currency                String   @db.VarChar(3)
-  pricingRuleId           String?  @map("pricing_rule_id") @db.Uuid
-  promoCodeId             String?  @map("promo_code_id") @db.Uuid
-  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                       String   @id @default(uuid()) @db.Uuid
+  bookingId                String   @unique @map("booking_id") @db.Uuid
+  basePriceMinor           Int      @map("base_price_minor")
+  supplierCostMinor        Int      @map("supplier_cost_minor")
+  markupMinor              Int      @map("markup_minor")
+  passengerAdjustmentMinor Int      @default(0) @map("passenger_adjustment_minor")
+  peakAdjustmentMinor      Int      @default(0) @map("peak_adjustment_minor")
+  discountMinor            Int      @default(0) @map("discount_minor")
+  taxEstimateMinor         Int      @default(0) @map("tax_estimate_minor")
+  totalMinor               Int      @map("total_minor")
+  marginMinor              Int      @map("margin_minor")
+  currency                 String   @db.VarChar(3)
+  pricingRuleId            String?  @map("pricing_rule_id") @db.Uuid
+  promoCodeId              String?  @map("promo_code_id") @db.Uuid
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
@@ -1035,14 +1111,14 @@ model BookingPriceSnapshot {
 }
 
 model BookingStatusHistory {
-  id         String     @id @default(uuid()) @db.Uuid
-  bookingId  String     @map("booking_id") @db.Uuid
+  id         String         @id @default(uuid()) @db.Uuid
+  bookingId  String         @map("booking_id") @db.Uuid
   fromStatus BookingStatus? @map("from_status")
   toStatus   BookingStatus  @map("to_status")
-  actorType  ActorType  @map("actor_type") @default(system)
-  actorId    String?    @map("actor_id") @db.Uuid
+  actorType  ActorType      @default(system) @map("actor_type")
+  actorId    String?        @map("actor_id") @db.Uuid
   reason     String?
-  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
@@ -1051,16 +1127,16 @@ model BookingStatusHistory {
 }
 
 model BookingSupplierAssignment {
-  id             String           @id @default(uuid()) @db.Uuid
-  bookingId      String           @map("booking_id") @db.Uuid
-  supplierId     String           @map("supplier_id") @db.Uuid
-  assignedBy     String?          @map("assigned_by") @db.Uuid
-  assignmentMethod AssignmentMethod @map("assignment_method") @default(manual)
-  status         AssignmentStatus @default(offered)
-  offeredAt      DateTime         @default(now()) @map("offered_at") @db.Timestamptz
-  respondedAt    DateTime?        @map("responded_at") @db.Timestamptz
-  responseNote   String?          @map("response_note")
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  id               String           @id @default(uuid()) @db.Uuid
+  bookingId        String           @map("booking_id") @db.Uuid
+  supplierId       String           @map("supplier_id") @db.Uuid
+  assignedBy       String?          @map("assigned_by") @db.Uuid
+  assignmentMethod AssignmentMethod @default(manual) @map("assignment_method")
+  status           AssignmentStatus @default(offered)
+  offeredAt        DateTime         @default(now()) @map("offered_at") @db.Timestamptz
+  respondedAt      DateTime?        @map("responded_at") @db.Timestamptz
+  responseNote     String?          @map("response_note")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
 
   booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   supplier Supplier @relation(fields: [supplierId], references: [id])
@@ -1142,16 +1218,16 @@ enum PayoutStatus {
 }
 
 model Payment {
-  id                   String            @id @default(uuid()) @db.Uuid
-  bookingId            String            @map("booking_id") @db.Uuid
-  stripePaymentIntentId String?          @unique @map("stripe_payment_intent_id")
-  amountMinor          Int               @map("amount_minor")
-  currency             String            @db.VarChar(3)
-  status               PaymentStatus     @default(requires_payment)
-  paymentMethodType    PaymentMethodType? @map("payment_method_type")
-  capturedAt           DateTime?         @map("captured_at") @db.Timestamptz
-  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  id                    String             @id @default(uuid()) @db.Uuid
+  bookingId             String             @map("booking_id") @db.Uuid
+  stripePaymentIntentId String?            @unique @map("stripe_payment_intent_id")
+  amountMinor           Int                @map("amount_minor")
+  currency              String             @db.VarChar(3)
+  status                PaymentStatus      @default(requires_payment)
+  paymentMethodType     PaymentMethodType? @map("payment_method_type")
+  capturedAt            DateTime?          @map("captured_at") @db.Timestamptz
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz
 
   booking      Booking              @relation(fields: [bookingId], references: [id])
   transactions PaymentTransaction[]
@@ -1193,19 +1269,19 @@ model StripeWebhookEvent {
 }
 
 model Settlement {
-  id             String           @id @default(uuid()) @db.Uuid
-  supplierId     String           @map("supplier_id") @db.Uuid
-  periodStart    DateTime         @map("period_start") @db.Date
-  periodEnd      DateTime         @map("period_end") @db.Date
-  status         SettlementStatus @default(draft)
-  grossMinor     Int              @map("gross_minor")
-  deductionsMinor Int             @default(0) @map("deductions_minor")
-  netPayableMinor Int             @map("net_payable_minor")
-  currency       String           @db.VarChar(3)
-  approvedBy     String?          @map("approved_by") @db.Uuid
-  paidAt         DateTime?        @map("paid_at") @db.Timestamptz
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  id              String           @id @default(uuid()) @db.Uuid
+  supplierId      String           @map("supplier_id") @db.Uuid
+  periodStart     DateTime         @map("period_start") @db.Date
+  periodEnd       DateTime         @map("period_end") @db.Date
+  status          SettlementStatus @default(draft)
+  grossMinor      Int              @map("gross_minor")
+  deductionsMinor Int              @default(0) @map("deductions_minor")
+  netPayableMinor Int              @map("net_payable_minor")
+  currency        String           @db.VarChar(3)
+  approvedBy      String?          @map("approved_by") @db.Uuid
+  paidAt          DateTime?        @map("paid_at") @db.Timestamptz
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz
 
   supplier Supplier         @relation(fields: [supplierId], references: [id])
   lines    SettlementLine[]
@@ -1216,15 +1292,15 @@ model Settlement {
 }
 
 model SettlementLine {
-  id                   String   @id @default(uuid()) @db.Uuid
-  settlementId         String   @map("settlement_id") @db.Uuid
-  bookingId            String   @map("booking_id") @db.Uuid
-  supplierId           String   @map("supplier_id") @db.Uuid
-  supplierCostMinor    Int      @map("supplier_cost_minor")
-  refundAdjustmentMinor Int     @default(0) @map("refund_adjustment_minor")
-  penaltyMinor         Int      @default(0) @map("penalty_minor")
-  netMinor             Int      @map("net_minor")
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                    String   @id @default(uuid()) @db.Uuid
+  settlementId          String   @map("settlement_id") @db.Uuid
+  bookingId             String   @map("booking_id") @db.Uuid
+  supplierId            String   @map("supplier_id") @db.Uuid
+  supplierCostMinor     Int      @map("supplier_cost_minor")
+  refundAdjustmentMinor Int      @default(0) @map("refund_adjustment_minor")
+  penaltyMinor          Int      @default(0) @map("penalty_minor")
+  netMinor              Int      @map("net_minor")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
   supplier   Supplier   @relation(fields: [supplierId], references: [id])
@@ -1276,37 +1352,37 @@ enum RefundRequestedBy {
 }
 
 model CancellationPolicy {
-  id                 String   @id @default(uuid()) @db.Uuid
-  scopeType          String   @map("scope_type") @db.VarChar(30)
-  scopeId            String?  @map("scope_id") @db.Uuid
-  windows            Json
-  supplierPenaltyRules Json?  @map("supplier_penalty_rules")
-  status             AvailabilityStatus @default(active)
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                   String             @id @default(uuid()) @db.Uuid
+  scopeType            String             @map("scope_type") @db.VarChar(30)
+  scopeId              String?            @map("scope_id") @db.Uuid
+  windows              Json
+  supplierPenaltyRules Json?              @map("supplier_penalty_rules")
+  status               AvailabilityStatus @default(active)
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz
 
   @@index([scopeType, scopeId])
   @@map("cancellation_policies")
 }
 
 model Refund {
-  id                  String             @id @default(uuid()) @db.Uuid
-  bookingId           String             @map("booking_id") @db.Uuid
-  paymentId           String?            @map("payment_id") @db.Uuid
-  type                RefundType         @default(partial)
+  id                   String            @id @default(uuid()) @db.Uuid
+  bookingId            String            @map("booking_id") @db.Uuid
+  paymentId            String?           @map("payment_id") @db.Uuid
+  type                 RefundType        @default(partial)
   requestedAmountMinor Int               @map("requested_amount_minor")
   approvedAmountMinor  Int?              @map("approved_amount_minor")
-  currency            String             @db.VarChar(3)
-  reason              String?
-  requestedBy         RefundRequestedBy  @map("requested_by") @default(customer)
-  policySnapshot      Json?              @map("policy_snapshot")
-  status              RefundStatus       @default(requested)
-  adminApprovedBy     String?            @map("admin_approved_by") @db.Uuid
-  financeApprovedBy   String?            @map("finance_approved_by") @db.Uuid
-  stripeRefundId      String?            @map("stripe_refund_id")
-  completedAt         DateTime?          @map("completed_at") @db.Timestamptz
-  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  currency             String            @db.VarChar(3)
+  reason               String?
+  requestedBy          RefundRequestedBy @default(customer) @map("requested_by")
+  policySnapshot       Json?             @map("policy_snapshot")
+  status               RefundStatus      @default(requested)
+  adminApprovedBy      String?           @map("admin_approved_by") @db.Uuid
+  financeApprovedBy    String?           @map("finance_approved_by") @db.Uuid
+  stripeRefundId       String?           @map("stripe_refund_id")
+  completedAt          DateTime?         @map("completed_at") @db.Timestamptz
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz
 
   booking       Booking               @relation(fields: [bookingId], references: [id])
   payment       Payment?              @relation(fields: [paymentId], references: [id])
@@ -1318,13 +1394,13 @@ model Refund {
 }
 
 model RefundStatusHistory {
-  id         String       @id @default(uuid()) @db.Uuid
-  refundId   String       @map("refund_id") @db.Uuid
+  id         String        @id @default(uuid()) @db.Uuid
+  refundId   String        @map("refund_id") @db.Uuid
   fromStatus RefundStatus? @map("from_status")
   toStatus   RefundStatus  @map("to_status")
-  actorId    String?      @map("actor_id") @db.Uuid
+  actorId    String?       @map("actor_id") @db.Uuid
   note       String?
-  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
   refund Refund @relation(fields: [refundId], references: [id], onDelete: Cascade)
 
@@ -1371,17 +1447,17 @@ enum IncidentTeam {
 }
 
 model Incident {
-  id             String           @id @default(uuid()) @db.Uuid
-  bookingId      String?          @map("booking_id") @db.Uuid
-  supplierId     String?          @map("supplier_id") @db.Uuid
-  type           IncidentType
-  severity       IncidentSeverity @default(medium)
-  status         IncidentStatus   @default(created)
-  openedBy       String?          @map("opened_by") @db.Uuid
-  resolutionReason String?        @map("resolution_reason")
-  resolvedAt     DateTime?        @map("resolved_at") @db.Timestamptz
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  id               String           @id @default(uuid()) @db.Uuid
+  bookingId        String?          @map("booking_id") @db.Uuid
+  supplierId       String?          @map("supplier_id") @db.Uuid
+  type             IncidentType
+  severity         IncidentSeverity @default(medium)
+  status           IncidentStatus   @default(created)
+  openedBy         String?          @map("opened_by") @db.Uuid
+  resolutionReason String?          @map("resolution_reason")
+  resolvedAt       DateTime?        @map("resolved_at") @db.Timestamptz
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz
 
   updates     IncidentUpdate[]
   assignments IncidentAssignment[]
@@ -1405,11 +1481,11 @@ model IncidentUpdate {
 }
 
 model IncidentAssignment {
-  id             String       @id @default(uuid()) @db.Uuid
-  incidentId     String       @map("incident_id") @db.Uuid
-  assignedToUserId String?    @map("assigned_to_user_id") @db.Uuid
-  assignedTeam   IncidentTeam? @map("assigned_team")
-  assignedAt     DateTime     @default(now()) @map("assigned_at") @db.Timestamptz
+  id               String        @id @default(uuid()) @db.Uuid
+  incidentId       String        @map("incident_id") @db.Uuid
+  assignedToUserId String?       @map("assigned_to_user_id") @db.Uuid
+  assignedTeam     IncidentTeam? @map("assigned_team")
+  assignedAt       DateTime      @default(now()) @map("assigned_at") @db.Timestamptz
 
   incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
 
@@ -1422,15 +1498,15 @@ model IncidentAssignment {
 // =============================================================================
 
 model SearchEvent {
-  id        String   @id @default(uuid()) @db.Uuid
-  sessionId String?  @map("session_id")
-  airportId String?  @map("airport_id") @db.Uuid
-  serviceId String?  @map("service_id") @db.Uuid
-  query     String?
-  filters   Json?
-  resultCount Int?   @map("result_count")
-  locale    String?  @db.VarChar(10)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id          String   @id @default(uuid()) @db.Uuid
+  sessionId   String?  @map("session_id")
+  airportId   String?  @map("airport_id") @db.Uuid
+  serviceId   String?  @map("service_id") @db.Uuid
+  query       String?
+  filters     Json?
+  resultCount Int?     @map("result_count")
+  locale      String?  @db.VarChar(10)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@index([createdAt])
   @@index([airportId])
@@ -1527,7 +1603,7 @@ model ApiKey {
   keyHash    String    @unique @map("key_hash")
   keyPrefix  String    @map("key_prefix") // e.g. "ap_live_Ab"
   supplierId String?   @map("supplier_id") @db.Uuid
-  scopes     String[]  // ['search', 'bookings.read', 'bookings.write', 'pricing.read']
+  scopes     String[] // ['search', 'bookings.read', 'bookings.write', 'pricing.read']
   rateLimit  Int       @default(1000) @map("rate_limit") // requests per hour
   status     String    @default("active")
   lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz
