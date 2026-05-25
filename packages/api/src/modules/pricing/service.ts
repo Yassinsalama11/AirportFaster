@@ -66,7 +66,7 @@ function calculateModelPrice(
         const pax = rule.passengerPricing as Record<string, number>;
         return (
           (pax['adult'] ?? base) * counts.adults +
-          (pax['child'] ?? pax['adult'] ?? base) * counts.children +
+          (pax['child'] ?? 0) * counts.children +
           (pax['infant'] ?? 0) * counts.infants
         );
       }

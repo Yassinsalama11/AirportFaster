@@ -10,6 +10,7 @@ export interface PassengerCounts {
 
 export interface BookingPricingRule {
   id?: string;
+  mode?: 'fixed' | 'cost_plus_markup' | null;
   basePriceMinor: number | null;
   currency: string;
   direction?: PricingDirection | null;
@@ -18,6 +19,11 @@ export interface BookingPricingRule {
   extraPassengerMinor?: number | null;
   groupSizeIncluded?: number | null;
   durationHours?: number | null;
+  supplierCostMinor?: number | null;
+  supplierCostFirstMinor?: number | null;
+  supplierCostExtraMinor?: number | null;
+  markupType?: 'percentage' | 'fixed_amount' | null;
+  markupValue?: number | string | null;
   priority?: number | null;
   passengerPricing?: Record<string, number> | null;
 }
@@ -39,27 +45,64 @@ export function calculatePriceMinor(
   passengers: PassengerCounts,
 ): number {
   if (!rule) return 0;
+  if (rule.mode === 'cost_plus_markup') {
+    return applyMarkup(calculateModelPriceMinor(rule, passengers, 'supplier'), rule);
+  }
+
+  return calculateModelPriceMinor(rule, passengers, 'customer');
+}
+
+function applyMarkup(costMinor: number, rule: BookingPricingRule): number {
+  const markupValue = Number(rule.markupValue ?? 0);
+  if (rule.markupType === 'percentage') {
+    return Math.round(costMinor * (1 + markupValue / 100));
+  }
+  if (rule.markupType === 'fixed_amount') {
+    return Math.round(costMinor + markupValue);
+  }
+  return costMinor;
+}
+
+function calculateModelPriceMinor(
+  rule: BookingPricingRule,
+  passengers: PassengerCounts,
+  source: 'customer' | 'supplier',
+): number {
   const total = passengers.adults + passengers.children + passengers.infants;
+  const base =
+    source === 'customer'
+      ? rule.basePriceMinor ?? 0
+      : rule.supplierCostMinor ?? rule.basePriceMinor ?? 0;
+  const first =
+    source === 'customer'
+      ? rule.firstPassengerMinor ?? base
+      : rule.supplierCostFirstMinor ?? rule.supplierCostMinor ?? rule.firstPassengerMinor ?? base;
+  const extra =
+    source === 'customer'
+      ? rule.extraPassengerMinor ?? 0
+      : rule.supplierCostExtraMinor ?? rule.supplierCostMinor ?? rule.extraPassengerMinor ?? 0;
 
   switch (rule.pricingModel ?? 'flat_per_type') {
-    case 'flat_per_type':
+    case 'flat_per_type': {
+      if (!rule.passengerPricing) return base * total;
       return (
-        (rule.passengerPricing?.['adult'] ?? 0) * passengers.adults +
-        (rule.passengerPricing?.['child'] ?? 0) * passengers.children +
-        (rule.passengerPricing?.['infant'] ?? 0) * passengers.infants
+        (rule.passengerPricing['adult'] ?? 0) * passengers.adults +
+        (rule.passengerPricing['child'] ?? 0) * passengers.children +
+        (rule.passengerPricing['infant'] ?? 0) * passengers.infants
       );
+    }
     case 'tiered':
       if (total === 0) return 0;
-      return (rule.firstPassengerMinor ?? 0) + Math.max(0, total - 1) * (rule.extraPassengerMinor ?? 0);
+      return first + Math.max(0, total - 1) * extra;
     case 'group':
       return (
-        (rule.basePriceMinor ?? 0) +
-        Math.max(0, total - (rule.groupSizeIncluded ?? 1)) * (rule.extraPassengerMinor ?? 0)
+        base +
+        Math.max(0, total - (rule.groupSizeIncluded ?? 1)) * extra
       );
     case 'duration_based':
-      return (rule.basePriceMinor ?? 0) * total;
+      return base * total;
     default:
-      return (rule.basePriceMinor ?? 0) * total;
+      return base * total;
   }
 }
 
