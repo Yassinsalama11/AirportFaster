@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AdminSearchSelect } from '@/components/admin/AdminSearchSelect';
 
 interface SupplierAirport {
   id: string;
@@ -144,19 +145,17 @@ export function AirportsTab({ supplierId, supplierAirports, allAirports }: Props
           )}
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1">Airport <span className="text-red-400">*</span></label>
-            <select
+            <AdminSearchSelect
+              options={availableAirports.map((a) => ({
+                id: a.id,
+                primary: a.iataCode,
+                secondary: a.city,
+              }))}
               value={selectedAirportId}
-              onChange={(e) => setSelectedAirportId(e.target.value)}
+              onChange={setSelectedAirportId}
+              placeholder="Type IATA or city…"
               required
-              className="w-full px-3 py-1.5 bg-brand-black border border-white/10 rounded text-brand-white text-sm focus:border-brand-gold outline-none"
-            >
-              <option value="">— Select airport —</option>
-              {availableAirports.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.iataCode} — {a.city}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div className="flex items-center gap-3">
             <button

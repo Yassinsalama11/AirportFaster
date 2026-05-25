@@ -42,6 +42,11 @@ const UpdateServicesBodySchema = z.object({
       isActive: z.boolean(),
       cutOffMinutes: z.number().int().min(0).optional().nullable(),
       minNoticeMinutes: z.number().int().min(0).optional().nullable(),
+      minimumLeadHours: z.number().int().min(0).optional(),
+      maxLeadDays: z.number().int().min(1).optional(),
+      directionAvailable: z.enum(['arrival', 'departure', 'both']).optional(),
+      nameEn: z.string().trim().max(200).optional(),
+      nameAr: z.string().trim().max(200).optional(),
     }),
   ),
 });
@@ -485,6 +490,9 @@ export async function airportRoutes(fastify: FastifyInstance): Promise<void> {
               isActive: svc.isActive,
               cutOffMinutes: svc.cutOffMinutes ?? null,
               minNoticeMinutes: svc.minNoticeMinutes ?? null,
+              ...(svc.minimumLeadHours !== undefined && { minimumLeadHours: svc.minimumLeadHours }),
+              ...(svc.maxLeadDays !== undefined && { maxLeadDays: svc.maxLeadDays }),
+              ...(svc.directionAvailable !== undefined && { directionAvailable: svc.directionAvailable }),
             },
             create: {
               airportId,
@@ -492,9 +500,41 @@ export async function airportRoutes(fastify: FastifyInstance): Promise<void> {
               isActive: svc.isActive,
               cutOffMinutes: svc.cutOffMinutes ?? null,
               minNoticeMinutes: svc.minNoticeMinutes ?? null,
+              ...(svc.minimumLeadHours !== undefined && { minimumLeadHours: svc.minimumLeadHours }),
+              ...(svc.maxLeadDays !== undefined && { maxLeadDays: svc.maxLeadDays }),
+              ...(svc.directionAvailable !== undefined && { directionAvailable: svc.directionAvailable }),
             },
-            include: { service: { include: { translations: true } } },
+            include: { service: { include: { translations: true } }, translations: true },
           });
+
+          // Upsert per-locale market-name translations (en + ar)
+          if (svc.nameEn && svc.nameEn.trim()) {
+            await tx.airportServiceTranslation.upsert({
+              where: { airportServiceId_locale: { airportServiceId: record.id, locale: 'en' } },
+              update: { name: svc.nameEn.trim() },
+              create: { airportServiceId: record.id, locale: 'en', name: svc.nameEn.trim() },
+            });
+          } else if (svc.nameEn === '') {
+            await tx.airportServiceTranslation
+              .delete({
+                where: { airportServiceId_locale: { airportServiceId: record.id, locale: 'en' } },
+              })
+              .catch(() => undefined);
+          }
+          if (svc.nameAr && svc.nameAr.trim()) {
+            await tx.airportServiceTranslation.upsert({
+              where: { airportServiceId_locale: { airportServiceId: record.id, locale: 'ar' } },
+              update: { name: svc.nameAr.trim() },
+              create: { airportServiceId: record.id, locale: 'ar', name: svc.nameAr.trim() },
+            });
+          } else if (svc.nameAr === '') {
+            await tx.airportServiceTranslation
+              .delete({
+                where: { airportServiceId_locale: { airportServiceId: record.id, locale: 'ar' } },
+              })
+              .catch(() => undefined);
+          }
+
           results.push(record);
         }
         return results;

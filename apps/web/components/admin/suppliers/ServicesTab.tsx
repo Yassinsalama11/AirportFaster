@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AdminSearchSelect } from '@/components/admin/AdminSearchSelect';
 
 interface SupplierService {
   id: string;
@@ -13,9 +14,16 @@ interface SupplierService {
   };
 }
 
+interface ServiceOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface Props {
   supplierId: string;
   supplierServices: SupplierService[];
+  allServices?: ServiceOption[];
 }
 
 function getServiceName(service?: { slug: string; translations: Array<{ locale: string; name: string }> } | null): string {
@@ -24,7 +32,10 @@ function getServiceName(service?: { slug: string; translations: Array<{ locale: 
   return t?.name ?? service.slug;
 }
 
-export function ServicesTab({ supplierId, supplierServices }: Props) {
+export function ServicesTab({ supplierId, supplierServices, allServices = [] }: Props) {
+  const linkedServiceIds = new Set(supplierServices.map((ss) => ss.serviceId));
+  const availableServices = allServices.filter((s) => !linkedServiceIds.has(s.id));
+
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [serviceId, setServiceId] = useState('');
@@ -133,16 +144,19 @@ export function ServicesTab({ supplierId, supplierServices }: Props) {
           )}
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1">
-              Service ID (UUID) <span className="text-red-400">*</span>
+              Service <span className="text-red-400">*</span>
             </label>
-            <input
-              type="text"
+            <AdminSearchSelect
+              options={availableServices.map((s) => ({
+                id: s.id,
+                primary: s.name,
+                secondary: s.slug,
+              }))}
               value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
-              className="w-full px-3 py-1.5 bg-brand-black border border-white/10 rounded text-brand-white text-sm focus:border-brand-gold outline-none font-mono"
+              onChange={setServiceId}
+              placeholder="Type to search services…"
+              required
             />
-            <p className="text-xs text-gray-600 mt-1">Find the service ID from the Services admin page.</p>
           </div>
           <div className="flex items-center gap-3">
             <button

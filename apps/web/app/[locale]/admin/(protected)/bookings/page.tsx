@@ -117,6 +117,12 @@ export default async function BookingsPage({
             {bookings.length} booking{bookings.length !== 1 ? 's' : ''} shown
           </p>
         </div>
+        <Link
+          href="/admin/bookings/new"
+          className="inline-flex items-center gap-2 rounded-full bg-brand-gold px-4 py-2 text-sm font-semibold text-brand-black hover:bg-brand-gold-light transition-colors"
+        >
+          <span>+</span> New Booking
+        </Link>
       </div>
 
       {/* Filters */}

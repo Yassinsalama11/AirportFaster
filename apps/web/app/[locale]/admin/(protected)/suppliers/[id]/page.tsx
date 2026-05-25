@@ -6,6 +6,7 @@ import { ContactsTab } from '@/components/admin/suppliers/ContactsTab';
 import { CoverageTab } from '@/components/admin/suppliers/CoverageTab';
 import { AirportsTab } from '@/components/admin/suppliers/AirportsTab';
 import { ServicesTab } from '@/components/admin/suppliers/ServicesTab';
+import { AvailabilityTab } from '@/components/admin/suppliers/AvailabilityTab';
 
 interface SupplierContact {
   id: string;
@@ -103,7 +104,7 @@ const STATUS_BADGE: Record<string, string> = {
   suspended: 'bg-red-500/20 text-red-400 border border-red-500/30',
 };
 
-const TABS = ['Overview', 'Contacts', 'Airports', 'Services', 'Coverage', 'Documents'] as const;
+const TABS = ['Overview', 'Contacts', 'Airports', 'Services', 'Coverage', 'Availability', 'Documents'] as const;
 type Tab = (typeof TABS)[number];
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -124,9 +125,12 @@ export default async function SupplierDetailPage({
   const sp = await searchParams;
   const activeTab: Tab = (TABS.find((t) => t.toLowerCase() === sp.tab?.toLowerCase()) ?? 'Overview') as Tab;
 
-  const [supplierResponse, airportsResponse] = await Promise.all([
+  const [supplierResponse, airportsResponse, servicesResponse] = await Promise.all([
     adminApiCall<{ supplier: Supplier }>(`/api/admin/suppliers/${id}`),
     adminApiCall<{ items: AirportOption[] }>('/api/admin/airports?pageSize=100'),
+    adminApiCall<{ items: Array<{ id: string; slug: string; translations: Array<{ locale: string; name: string }> }> }>(
+      '/api/admin/services?pageSize=200',
+    ),
   ]);
 
   if (!supplierResponse.success) {
@@ -135,6 +139,12 @@ export default async function SupplierDetailPage({
 
   const supplier = supplierResponse.data.supplier;
   const allAirports = airportsResponse.success ? airportsResponse.data.items : [];
+  const allServices = servicesResponse.success
+    ? servicesResponse.data.items.map((s) => {
+        const enName = s.translations.find((t) => t.locale === 'en')?.name;
+        return { id: s.id, name: enName ?? s.slug, slug: s.slug };
+      })
+    : [];
 
   return (
     <div className="space-y-6">
@@ -281,6 +291,7 @@ export default async function SupplierDetailPage({
             <ServicesTab
               supplierId={supplier.id}
               supplierServices={supplier.supplierServices}
+              allServices={allServices}
             />
           </div>
         )}
@@ -293,6 +304,13 @@ export default async function SupplierDetailPage({
               coverages={supplier.coverages}
               availableAirports={allAirports}
             />
+          </div>
+        )}
+
+        {activeTab === 'Availability' && (
+          <div className="bg-brand-navy border border-white/5 rounded-xl p-6">
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Weekly Availability</h2>
+            <AvailabilityTab supplierId={supplier.id} />
           </div>
         )}
 

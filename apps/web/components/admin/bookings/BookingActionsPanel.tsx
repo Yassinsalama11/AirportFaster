@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface Supplier {
   id: string;
   name: string;
@@ -33,10 +31,9 @@ export function BookingActionsPanel({ bookingId, status, availableSuppliers }: P
     if (!supplierId) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/bookings/${bookingId}/assign-supplier`, {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/assign-supplier`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ supplierId }),
       });
       const json = await res.json();
@@ -56,10 +53,9 @@ export function BookingActionsPanel({ bookingId, status, availableSuppliers }: P
   async function handlePatchStatus(newStatus: string, note?: string) {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/bookings/${bookingId}/status`, {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ status: newStatus, reason: note }),
       });
       const json = await res.json();
@@ -77,17 +73,38 @@ export function BookingActionsPanel({ bookingId, status, availableSuppliers }: P
   }
 
   const canAssign = status === 'pending_supplier_assignment';
-  const canConfirmStep1 = status === 'supplier_assigned'; // move to pending_supplier_confirmation
-  const canConfirmStep2 = status === 'pending_supplier_confirmation'; // move to confirmed
-  const canCancel = ['draft', 'pending_payment', 'paid', 'pending_supplier_assignment', 'supplier_assigned', 'pending_supplier_confirmation', 'confirmed', 'in_progress'].includes(status);
+  const canConfirmStep1 = status === 'supplier_assigned';
+  const canConfirmStep2 = status === 'pending_supplier_confirmation';
 
-  if (!canAssign && !canConfirmStep1 && !canConfirmStep2 && !canCancel) {
-    return (
-      <div className="bg-brand-navy border border-white/5 rounded-xl p-5">
-        <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Actions</p>
-        <p className="text-sm text-gray-500">No actions available for current status.</p>
-      </div>
-    );
+  const STATUS_OPTIONS: Array<{
+    value: string;
+    label: string;
+    confirm?: string;
+    tone?: 'default' | 'danger' | 'success';
+  }> = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'under_investigation', label: 'Under Investigation' },
+    {
+      value: 'cancelled_no_refund',
+      label: 'Cancel without Refund',
+      confirm: 'Cancel this booking WITHOUT issuing a refund. This cannot be undone — continue?',
+      tone: 'danger',
+    },
+    {
+      value: 'cancelled_with_refund',
+      label: 'Cancel with Refund',
+      confirm: 'Cancel this booking AND refund the customer. Continue?',
+      tone: 'danger',
+    },
+    { value: 'completed', label: 'Completed', tone: 'success' },
+  ];
+
+  async function handleSelectStatus(optionValue: string) {
+    const option = STATUS_OPTIONS.find((o) => o.value === optionValue);
+    if (!option) return;
+    if (option.confirm && !confirm(option.confirm)) return;
+    await handlePatchStatus(option.value);
   }
 
   return (
@@ -165,22 +182,32 @@ export function BookingActionsPanel({ bookingId, status, availableSuppliers }: P
         </div>
       )}
 
-      {/* Cancel */}
-      {canCancel && (
-        <div className="space-y-2 pt-2 border-t border-white/5">
-          <button
-            onClick={() => {
-              if (confirm('Are you sure you want to cancel this booking?')) {
-                handlePatchStatus('cancelled', 'Cancelled by admin');
-              }
-            }}
-            disabled={loading}
-            className="w-full px-4 py-2 border border-red-500/30 text-red-400 font-medium rounded-lg text-sm hover:border-red-500/60 transition-colors disabled:opacity-50"
-          >
-            Cancel Booking
-          </button>
-        </div>
-      )}
+      {/* Status change dropdown */}
+      <div className="space-y-2 pt-2 border-t border-white/5">
+        <p className="text-sm font-medium text-brand-white">Change Status</p>
+        <p className="text-xs text-gray-500">
+          Current: <span className="capitalize">{status.replace(/_/g, ' ')}</span>
+        </p>
+        <select
+          disabled={loading}
+          value=""
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v) handleSelectStatus(v);
+            e.currentTarget.value = '';
+          }}
+          className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none disabled:opacity-50"
+        >
+          <option value="" disabled>
+            Select a new status…
+          </option>
+          {STATUS_OPTIONS.filter((o) => o.value !== status).map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

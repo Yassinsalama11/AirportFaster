@@ -46,6 +46,11 @@ interface AirportServiceConfig {
   isActive: boolean;
   cutOffMinutes: number | null;
   minNoticeMinutes: number | null;
+  minimumLeadHours: number;
+  maxLeadDays: number;
+  directionAvailable: 'arrival' | 'departure' | 'both';
+  nameEn: string;
+  nameAr: string;
 }
 
 interface AirportImageData {
@@ -72,6 +77,10 @@ interface AirportData {
     isActive: boolean;
     cutOffMinutes?: number | null;
     minNoticeMinutes?: number | null;
+    minimumLeadHours?: number;
+    maxLeadDays?: number;
+    directionAvailable?: 'arrival' | 'departure' | 'both';
+    translations?: Array<{ locale: string; name: string; description?: string | null }>;
     service?: { id: string; slug: string; translations: Array<{ locale: string; name: string }> };
   }>;
   seo?: {
@@ -153,11 +162,18 @@ export function AirportForm({ airport, services, isNew }: Props) {
   const [serviceConfigs, setServiceConfigs] = useState<AirportServiceConfig[]>(
     services.map((svc) => {
       const existing = airport?.airportServices?.find((as) => as.serviceId === svc.id || as.service?.id === svc.id);
+      const trEn = existing?.translations?.find((t) => t.locale === 'en')?.name ?? '';
+      const trAr = existing?.translations?.find((t) => t.locale === 'ar')?.name ?? '';
       return {
         serviceId: svc.id,
         isActive: existing?.isActive ?? false,
         cutOffMinutes: existing?.cutOffMinutes ?? null,
         minNoticeMinutes: existing?.minNoticeMinutes ?? null,
+        minimumLeadHours: existing?.minimumLeadHours ?? 2,
+        maxLeadDays: existing?.maxLeadDays ?? 365,
+        directionAvailable: existing?.directionAvailable ?? 'both',
+        nameEn: trEn,
+        nameAr: trAr,
       };
     }),
   );
@@ -171,7 +187,7 @@ export function AirportForm({ airport, services, isNew }: Props) {
   const [ogImage, setOgImage] = useState(airport?.seo?.ogImage ?? '');
 
   const updateServiceConfig = useCallback(
-    (serviceId: string, field: keyof AirportServiceConfig, value: boolean | number | null) => {
+    (serviceId: string, field: keyof AirportServiceConfig, value: boolean | number | string | null) => {
       setServiceConfigs((prev) =>
         prev.map((sc) =>
           sc.serviceId === serviceId ? { ...sc, [field]: value } : sc,
@@ -982,28 +998,97 @@ export function AirportForm({ airport, services, isNew }: Props) {
                   </label>
                 </div>
                 {config.isActive && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Cut-off (minutes)</label>
-                      <input
-                        type="number"
-                        value={config.cutOffMinutes ?? ''}
-                        onChange={(e) => updateServiceConfig(svc.id, 'cutOffMinutes', e.target.value ? Number(e.target.value) : null)}
-                        placeholder="e.g. 120"
-                        min={0}
-                        className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
-                      />
+                  <div className="space-y-4">
+                    {/* Market name overrides */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Market Name (English)</label>
+                        <input
+                          type="text"
+                          value={config.nameEn}
+                          onChange={(e) => updateServiceConfig(svc.id, 'nameEn', e.target.value)}
+                          placeholder='e.g. "Diamond"'
+                          className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Market Name (Arabic)</label>
+                        <input
+                          type="text"
+                          value={config.nameAr}
+                          onChange={(e) => updateServiceConfig(svc.id, 'nameAr', e.target.value)}
+                          placeholder="e.g. الدايموند"
+                          dir="rtl"
+                          className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Min notice (minutes)</label>
-                      <input
-                        type="number"
-                        value={config.minNoticeMinutes ?? ''}
-                        onChange={(e) => updateServiceConfig(svc.id, 'minNoticeMinutes', e.target.value ? Number(e.target.value) : null)}
-                        placeholder="e.g. 60"
-                        min={0}
-                        className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
-                      />
+                    <p className="text-[11px] text-gray-500 -mt-2">
+                      Leave blank to use the global service name. Set per-airport overrides like "Diamond" / "Elite Escort" / "Platinum".
+                    </p>
+
+                    {/* Lead times & direction */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Min lead time (hours)</label>
+                        <input
+                          type="number"
+                          value={config.minimumLeadHours}
+                          onChange={(e) => updateServiceConfig(svc.id, 'minimumLeadHours', Number(e.target.value) || 0)}
+                          min={0}
+                          placeholder="3"
+                          className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Max advance (days)</label>
+                        <input
+                          type="number"
+                          value={config.maxLeadDays}
+                          onChange={(e) => updateServiceConfig(svc.id, 'maxLeadDays', Number(e.target.value) || 0)}
+                          min={1}
+                          placeholder="365"
+                          className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Direction available</label>
+                        <select
+                          value={config.directionAvailable}
+                          onChange={(e) => updateServiceConfig(svc.id, 'directionAvailable', e.target.value as 'arrival' | 'departure' | 'both')}
+                          className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
+                        >
+                          <option value="both">Both</option>
+                          <option value="arrival">Arrival only</option>
+                          <option value="departure">Departure only</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Operational windows */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Cut-off (minutes)</label>
+                        <input
+                          type="number"
+                          value={config.cutOffMinutes ?? ''}
+                          onChange={(e) => updateServiceConfig(svc.id, 'cutOffMinutes', e.target.value ? Number(e.target.value) : null)}
+                          placeholder="e.g. 120"
+                          min={0}
+                          className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Min notice (minutes)</label>
+                        <input
+                          type="number"
+                          value={config.minNoticeMinutes ?? ''}
+                          onChange={(e) => updateServiceConfig(svc.id, 'minNoticeMinutes', e.target.value ? Number(e.target.value) : null)}
+                          placeholder="e.g. 60"
+                          min={0}
+                          className="w-full px-3 py-2 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

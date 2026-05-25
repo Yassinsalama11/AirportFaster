@@ -148,6 +148,41 @@ export default async function AdminOverviewPage({ params }: { params: Promise<{ 
         <p className="mt-2 text-sm text-gray-400">{t('subtitle')}</p>
       </div>
 
+      {/* Quick Actions strip */}
+      <div>
+        <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
+          {t('quick_actions')}
+        </h2>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/admin/bookings/new"
+            className="inline-flex items-center gap-2 rounded-full bg-brand-gold px-4 py-2.5 text-sm font-semibold text-brand-black transition-colors hover:bg-brand-gold-light"
+          >
+            <span>+</span>
+            {t('new_booking', { default: 'New Booking' })}
+          </Link>
+          <Link
+            href="/admin/suppliers/new"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-brand-white transition-colors hover:border-brand-gold/40 hover:text-brand-gold light:border-black/10 light:bg-white/80"
+          >
+            <span className="text-brand-gold">+</span>
+            {t('new_supplier')}
+          </Link>
+          <Link
+            href="/admin/airports"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-brand-white transition-colors hover:border-brand-gold/40 hover:text-brand-gold light:border-black/10 light:bg-white/80"
+          >
+            {t('search_airports')}
+          </Link>
+          <Link
+            href="/admin/bookings"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-brand-white transition-colors hover:border-brand-gold/40 hover:text-brand-gold light:border-black/10 light:bg-white/80"
+          >
+            {t('view_all_bookings')}
+          </Link>
+        </div>
+      </div>
+
       {/* KPI stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {kpiCards.map((card) => (
@@ -258,33 +293,6 @@ export default async function AdminOverviewPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      {/* Quick Actions strip */}
-      <div>
-        <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
-          {t('quick_actions')}
-        </h2>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/admin/suppliers/new"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-brand-white transition-colors hover:border-brand-gold/40 hover:text-brand-gold light:border-black/10 light:bg-white/80"
-          >
-            <span className="text-brand-gold">+</span>
-            {t('new_supplier')}
-          </Link>
-          <Link
-            href="/admin/airports"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-brand-white transition-colors hover:border-brand-gold/40 hover:text-brand-gold light:border-black/10 light:bg-white/80"
-          >
-            {t('search_airports')}
-          </Link>
-          <Link
-            href="/admin/bookings"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-brand-white transition-colors hover:border-brand-gold/40 hover:text-brand-gold light:border-black/10 light:bg-white/80"
-          >
-            {t('view_all_bookings')}
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

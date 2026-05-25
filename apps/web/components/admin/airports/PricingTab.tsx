@@ -13,13 +13,24 @@ interface Supplier {
   code: string;
 }
 
+type PricingModel = 'flat_per_type' | 'tiered' | 'group' | 'duration_based';
+type PricingDirection = 'arrival' | 'departure' | 'both';
+
 interface PricingRule {
   id: string;
   airportServiceId: string;
   supplierId: string | null;
   mode: 'fixed' | 'cost_plus_markup';
+  direction?: PricingDirection;
+  pricingModel?: PricingModel;
   basePriceMinor: number | null;
+  firstPassengerMinor?: number | null;
+  extraPassengerMinor?: number | null;
+  groupSizeIncluded?: number | null;
+  durationHours?: number | null;
   supplierCostMinor: number | null;
+  supplierCostFirstMinor?: number | null;
+  supplierCostExtraMinor?: number | null;
   markupType: string | null;
   markupValue: string | null;
   currency: string;
@@ -34,13 +45,24 @@ interface FormState {
   airportServiceId: string;
   supplierId: string;
   mode: 'fixed' | 'cost_plus_markup';
+  direction: PricingDirection;
+  pricingModel: PricingModel;
   currency: string;
   adultPriceMinor: string;
   childPriceMinor: string;
   childFree: boolean;
   infantPriceMinor: string;
   infantFree: boolean;
+  // Model-specific
+  basePriceEur: string;
+  firstPassengerEur: string;
+  extraPassengerEur: string;
+  groupSizeIncluded: string;
+  durationHours: string;
+  // Supplier cost
   supplierCostMinor: string;
+  supplierCostFirstEur: string;
+  supplierCostExtraEur: string;
   markupType: 'percentage' | 'fixed_amount';
   markupValue: string;
   validFrom: string;
@@ -49,18 +71,27 @@ interface FormState {
   status: 'active' | 'inactive';
 }
 
-function blankForm(defaultServiceId: string): FormState {
+function blankForm(defaultServiceId: string, defaultCurrency = 'EUR'): FormState {
   return {
     airportServiceId: defaultServiceId,
     supplierId: '',
     mode: 'fixed',
-    currency: 'EUR',
+    direction: 'both',
+    pricingModel: 'flat_per_type',
+    currency: defaultCurrency,
     adultPriceMinor: '',
     childPriceMinor: '',
     childFree: false,
     infantPriceMinor: '',
     infantFree: false,
+    basePriceEur: '',
+    firstPassengerEur: '',
+    extraPassengerEur: '',
+    groupSizeIncluded: '',
+    durationHours: '',
     supplierCostMinor: '',
+    supplierCostFirstEur: '',
+    supplierCostExtraEur: '',
     markupType: 'percentage',
     markupValue: '',
     validFrom: '',
@@ -88,13 +119,34 @@ function ruleToForm(rule: PricingRule): FormState {
     airportServiceId: rule.airportServiceId,
     supplierId: rule.supplierId ?? '',
     mode: rule.mode,
+    direction: rule.direction ?? 'both',
+    pricingModel: rule.pricingModel ?? 'flat_per_type',
     currency: rule.currency,
     adultPriceMinor: adultMinor > 0 ? minorToEurStr(adultMinor) : '',
     childPriceMinor: childVal != null && childVal > 0 ? minorToEurStr(childVal) : '',
     childFree: childVal === 0,
     infantPriceMinor: infantVal != null && infantVal > 0 ? minorToEurStr(infantVal) : '',
     infantFree: infantVal === 0,
+    basePriceEur: rule.basePriceMinor != null && rule.basePriceMinor > 0 ? minorToEurStr(rule.basePriceMinor) : '',
+    firstPassengerEur:
+      rule.firstPassengerMinor != null && rule.firstPassengerMinor > 0
+        ? minorToEurStr(rule.firstPassengerMinor)
+        : '',
+    extraPassengerEur:
+      rule.extraPassengerMinor != null && rule.extraPassengerMinor > 0
+        ? minorToEurStr(rule.extraPassengerMinor)
+        : '',
+    groupSizeIncluded: rule.groupSizeIncluded != null ? String(rule.groupSizeIncluded) : '',
+    durationHours: rule.durationHours != null ? String(rule.durationHours) : '',
     supplierCostMinor: rule.supplierCostMinor != null ? minorToEurStr(rule.supplierCostMinor) : '',
+    supplierCostFirstEur:
+      rule.supplierCostFirstMinor != null && rule.supplierCostFirstMinor > 0
+        ? minorToEurStr(rule.supplierCostFirstMinor)
+        : '',
+    supplierCostExtraEur:
+      rule.supplierCostExtraMinor != null && rule.supplierCostExtraMinor > 0
+        ? minorToEurStr(rule.supplierCostExtraMinor)
+        : '',
     markupType: (rule.markupType as 'percentage' | 'fixed_amount') ?? 'percentage',
     markupValue: rule.markupValue != null ? String(rule.markupValue) : '',
     validFrom: rule.validFrom ? new Date(rule.validFrom).toISOString().slice(0, 16) : '',
@@ -187,6 +239,8 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
     const body: Record<string, unknown> = {
       airportServiceId: form.airportServiceId,
       mode: form.mode,
+      direction: form.direction,
+      pricingModel: form.pricingModel,
       currency: form.currency.toUpperCase(),
       priority: parseInt(form.priority, 10),
       status: form.status,
@@ -194,14 +248,44 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
     };
 
     if (form.mode === 'fixed') {
-      const adultMinor = eurToMinor(form.adultPriceMinor);
-      body['basePriceMinor'] = adultMinor;
-      const pp: Record<string, number> = { adult: adultMinor };
-      if (form.childFree) pp['child'] = 0;
-      else if (form.childPriceMinor.trim()) pp['child'] = eurToMinor(form.childPriceMinor);
-      if (form.infantFree) pp['infant'] = 0;
-      else if (form.infantPriceMinor.trim()) pp['infant'] = eurToMinor(form.infantPriceMinor);
-      body['passengerPricing'] = pp;
+      // Model-specific pricing fields
+      switch (form.pricingModel) {
+        case 'flat_per_type': {
+          const adultMinor = eurToMinor(form.adultPriceMinor);
+          body['basePriceMinor'] = adultMinor;
+          const pp: Record<string, number> = { adult: adultMinor };
+          if (form.childFree) pp['child'] = 0;
+          else if (form.childPriceMinor.trim()) pp['child'] = eurToMinor(form.childPriceMinor);
+          if (form.infantFree) pp['infant'] = 0;
+          else if (form.infantPriceMinor.trim()) pp['infant'] = eurToMinor(form.infantPriceMinor);
+          body['passengerPricing'] = pp;
+          break;
+        }
+        case 'tiered': {
+          body['firstPassengerMinor'] = eurToMinor(form.firstPassengerEur);
+          body['extraPassengerMinor'] = eurToMinor(form.extraPassengerEur);
+          // Keep basePriceMinor populated for backwards compatibility (= first passenger).
+          body['basePriceMinor'] = eurToMinor(form.firstPassengerEur);
+          break;
+        }
+        case 'group': {
+          body['basePriceMinor'] = eurToMinor(form.basePriceEur);
+          body['groupSizeIncluded'] = parseInt(form.groupSizeIncluded || '1', 10);
+          body['extraPassengerMinor'] = eurToMinor(form.extraPassengerEur);
+          break;
+        }
+        case 'duration_based': {
+          body['basePriceMinor'] = eurToMinor(form.basePriceEur);
+          body['durationHours'] = parseInt(form.durationHours || '1', 10);
+          break;
+        }
+      }
+      // Supplier cost fields (optional, all models)
+      if (form.supplierCostMinor.trim()) body['supplierCostMinor'] = eurToMinor(form.supplierCostMinor);
+      if (form.supplierCostFirstEur.trim())
+        body['supplierCostFirstMinor'] = eurToMinor(form.supplierCostFirstEur);
+      if (form.supplierCostExtraEur.trim())
+        body['supplierCostExtraMinor'] = eurToMinor(form.supplierCostExtraEur);
     } else {
       body['supplierCostMinor'] = eurToMinor(form.supplierCostMinor);
       body['markupType'] = form.markupType;
@@ -238,13 +322,20 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
 
   async function handleDelete(ruleId: string) {
     try {
-      await fetch(`/api/admin/pricing/rules/${ruleId}`, {
+      const res = await fetch(`/api/admin/pricing/rules/${ruleId}`, {
         method: 'DELETE',
       });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        setError(json?.error?.message ?? 'Failed to delete pricing rule');
+        setDeleteConfirm(null);
+        return;
+      }
       setDeleteConfirm(null);
       await fetchRules();
     } catch {
-      // silent
+      setError('Network error while deleting rule.');
+      setDeleteConfirm(null);
     }
   }
 
@@ -326,45 +417,152 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
               </div>
             </div>
 
-            {/* Currency — locked to EUR */}
+            {/* Direction */}
+            <div>
+              <label className={labelClass}>Direction <span className="text-red-400">*</span></label>
+              <select
+                value={form.direction}
+                onChange={(e) => set('direction', e.target.value as PricingDirection)}
+                className={inputClass}
+              >
+                <option value="both">Both (arrival + departure)</option>
+                <option value="arrival">Arrival only</option>
+                <option value="departure">Departure only</option>
+              </select>
+            </div>
+
+            {/* Pricing Model */}
+            <div>
+              <label className={labelClass}>Pricing Model <span className="text-red-400">*</span></label>
+              <select
+                value={form.pricingModel}
+                onChange={(e) => set('pricingModel', e.target.value as PricingModel)}
+                className={inputClass}
+              >
+                <option value="flat_per_type">Flat per type (adult / child / infant)</option>
+                <option value="tiered">Tiered (1st passenger + per extra)</option>
+                <option value="group">Group (base for N passengers + per extra)</option>
+                <option value="duration_based">Duration-based (per person per session)</option>
+              </select>
+            </div>
+
+            {/* Currency */}
             <div>
               <label className={labelClass}>Currency</label>
-              <div className={`w-32 ${inputClass} bg-brand-black/50`}>EUR (€)</div>
+              <input
+                type="text"
+                value={form.currency}
+                onChange={(e) => set('currency', e.target.value.toUpperCase().slice(0, 3))}
+                maxLength={3}
+                placeholder="EUR"
+                className={`${inputClass} font-mono uppercase`}
+              />
+              <p className="text-xs text-gray-500 mt-1">3-letter ISO code (e.g. EUR, GBP, USD, EGP).</p>
             </div>
           </div>
 
-          {/* Fixed price fields */}
+          {/* Fixed price fields — switch on pricingModel */}
           {form.mode === 'fixed' && (
             <div className="space-y-4 pt-2 border-t border-white/5">
-              <p className="text-xs text-gray-500">Enter prices in euros — e.g. 45 or 45.50</p>
+              <p className="text-xs text-gray-500">Enter prices in {form.currency || 'EUR'} (e.g. 45 or 45.50).</p>
 
-              <div>
-                <label className={labelClass}>Adult Price (€) <span className="text-red-400">*</span></label>
-                <input type="number" value={form.adultPriceMinor} onChange={(e) => set('adultPriceMinor', e.target.value)} min={0} step={0.01} required placeholder="45.00" className={inputClass} />
-              </div>
+              {form.pricingModel === 'flat_per_type' && (
+                <>
+                  <div>
+                    <label className={labelClass}>Adult Price <span className="text-red-400">*</span></label>
+                    <input type="number" value={form.adultPriceMinor} onChange={(e) => set('adultPriceMinor', e.target.value)} min={0} step={0.01} required placeholder="45.00" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Child Price</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
+                        <input type="checkbox" checked={form.childFree} onChange={(e) => set('childFree', e.target.checked)} className="accent-brand-gold" />
+                        <span className="text-sm text-gray-300">Free</span>
+                      </label>
+                      {!form.childFree && (
+                        <input type="number" value={form.childPriceMinor} onChange={(e) => set('childPriceMinor', e.target.value)} min={0} step={0.01} placeholder="25.00 (blank = same as adult)" className={`flex-1 ${inputClass}`} />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Infant Price</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
+                        <input type="checkbox" checked={form.infantFree} onChange={(e) => set('infantFree', e.target.checked)} className="accent-brand-gold" />
+                        <span className="text-sm text-gray-300">Free</span>
+                      </label>
+                      {!form.infantFree && (
+                        <input type="number" value={form.infantPriceMinor} onChange={(e) => set('infantPriceMinor', e.target.value)} min={0} step={0.01} placeholder="10.00 (blank = same as adult)" className={`flex-1 ${inputClass}`} />
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
 
-              <div>
-                <label className={labelClass}>Child Price (€)</label>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
-                    <input type="checkbox" checked={form.childFree} onChange={(e) => set('childFree', e.target.checked)} className="accent-brand-gold" />
-                    <span className="text-sm text-gray-300">Free</span>
-                  </label>
-                  {!form.childFree && (
-                    <input type="number" value={form.childPriceMinor} onChange={(e) => set('childPriceMinor', e.target.value)} min={0} step={0.01} placeholder="25.00 (blank = same as adult)" className={`flex-1 ${inputClass}`} />
-                  )}
+              {form.pricingModel === 'tiered' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>1st Passenger Price <span className="text-red-400">*</span></label>
+                    <input type="number" value={form.firstPassengerEur} onChange={(e) => set('firstPassengerEur', e.target.value)} min={0} step={0.01} required placeholder="85.00" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Each Additional Passenger <span className="text-red-400">*</span></label>
+                    <input type="number" value={form.extraPassengerEur} onChange={(e) => set('extraPassengerEur', e.target.value)} min={0} step={0.01} required placeholder="45.00" className={inputClass} />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <label className={labelClass}>Infant Price (€)</label>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
-                    <input type="checkbox" checked={form.infantFree} onChange={(e) => set('infantFree', e.target.checked)} className="accent-brand-gold" />
-                    <span className="text-sm text-gray-300">Free</span>
-                  </label>
-                  {!form.infantFree && (
-                    <input type="number" value={form.infantPriceMinor} onChange={(e) => set('infantPriceMinor', e.target.value)} min={0} step={0.01} placeholder="10.00 (blank = same as adult)" className={`flex-1 ${inputClass}`} />
+              {form.pricingModel === 'group' && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelClass}>Base Price <span className="text-red-400">*</span></label>
+                    <input type="number" value={form.basePriceEur} onChange={(e) => set('basePriceEur', e.target.value)} min={0} step={0.01} required placeholder="250.00" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Passengers Included <span className="text-red-400">*</span></label>
+                    <input type="number" value={form.groupSizeIncluded} onChange={(e) => set('groupSizeIncluded', e.target.value)} min={1} step={1} required placeholder="5" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Each Extra Passenger</label>
+                    <input type="number" value={form.extraPassengerEur} onChange={(e) => set('extraPassengerEur', e.target.value)} min={0} step={0.01} placeholder="40.00" className={inputClass} />
+                  </div>
+                </div>
+              )}
+
+              {form.pricingModel === 'duration_based' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Price per Person <span className="text-red-400">*</span></label>
+                    <input type="number" value={form.basePriceEur} onChange={(e) => set('basePriceEur', e.target.value)} min={0} step={0.01} required placeholder="35.00" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Session Duration (hours) <span className="text-red-400">*</span></label>
+                    <input type="number" value={form.durationHours} onChange={(e) => set('durationHours', e.target.value)} min={1} step={1} required placeholder="3" className={inputClass} />
+                  </div>
+                </div>
+              )}
+
+              {/* Supplier cost section — applies to all fixed-price models */}
+              <div className="pt-4 border-t border-white/5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  Supplier Cost (for margin calculation)
+                </p>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelClass}>Base Cost</label>
+                    <input type="number" value={form.supplierCostMinor} onChange={(e) => set('supplierCostMinor', e.target.value)} min={0} step={0.01} placeholder="20.00" className={inputClass} />
+                  </div>
+                  {(form.pricingModel === 'tiered' || form.pricingModel === 'group') && (
+                    <>
+                      <div>
+                        <label className={labelClass}>1st Passenger Cost</label>
+                        <input type="number" value={form.supplierCostFirstEur} onChange={(e) => set('supplierCostFirstEur', e.target.value)} min={0} step={0.01} placeholder="40.00" className={inputClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Extra Passenger Cost</label>
+                        <input type="number" value={form.supplierCostExtraEur} onChange={(e) => set('supplierCostExtraEur', e.target.value)} min={0} step={0.01} placeholder="25.00" className={inputClass} />
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
