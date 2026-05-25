@@ -41,6 +41,7 @@ type BookPageProps = {
   searchParams: Promise<{
     serviceId?: string;
     service?: string;
+    ruleId?: string;
     date?: string;
     adults?: string;
     children?: string;
@@ -86,7 +87,7 @@ export async function generateMetadata({ params }: BookPageProps): Promise<Metad
 
 export default async function BookPage({ params, searchParams }: BookPageProps) {
   const { slug, locale } = await params;
-  const { serviceId, service, date, adults, children, infants } = await searchParams;
+  const { serviceId, service, ruleId, date, adults, children, infants } = await searchParams;
 
   const prefill = {
     ...(date && { date }),
@@ -160,6 +161,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
         {...(selectedAirportServiceId !== undefined && { serviceId: selectedAirportServiceId })}
         {...(firstPrice?.passengerPricing != null && { passengerPricing: firstPrice.passengerPricing })}
         {...(selectedService?.pricingRules != null && { pricingRules: selectedService.pricingRules })}
+        {...(ruleId && { initialRuleId: ruleId })}
         {...(Object.keys(prefill).length > 0 && { prefill })}
         summary={{
           ...(serviceName && { serviceName }),

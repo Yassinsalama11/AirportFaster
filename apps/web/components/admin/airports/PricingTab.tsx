@@ -21,6 +21,7 @@ interface PricingRule {
   id: string;
   airportServiceId: string;
   supplierId: string | null;
+  displayName?: string | null;
   mode: 'fixed' | 'cost_plus_markup';
   direction?: PricingDirection;
   pricingModel?: PricingModel;
@@ -45,6 +46,7 @@ interface PricingRule {
 interface FormState {
   airportServiceId: string;
   supplierId: string;
+  displayName: string;
   mode: 'fixed' | 'cost_plus_markup';
   direction: PricingDirection;
   pricingModel: PricingModel;
@@ -76,6 +78,7 @@ function blankForm(defaultServiceId: string, defaultCurrency = 'EUR'): FormState
   return {
     airportServiceId: defaultServiceId,
     supplierId: '',
+    displayName: '',
     mode: 'fixed',
     direction: 'both',
     pricingModel: 'flat_per_type',
@@ -119,6 +122,7 @@ function ruleToForm(rule: PricingRule): FormState {
   return {
     airportServiceId: rule.airportServiceId,
     supplierId: rule.supplierId ?? '',
+    displayName: rule.displayName ?? '',
     mode: rule.mode,
     direction: rule.direction ?? 'both',
     pricingModel: rule.pricingModel ?? 'flat_per_type',
@@ -237,6 +241,7 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
 
     const body: Record<string, unknown> = {
       airportServiceId: form.airportServiceId,
+      displayName: form.displayName.trim() || null,
       mode: form.mode,
       direction: form.direction,
       pricingModel: form.pricingModel,
@@ -401,6 +406,18 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
                   <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
                 ))}
               </select>
+            </div>
+
+            {/* Display Name */}
+            <div>
+              <label className={labelClass}>Display Name <span className="text-gray-500 font-normal">(optional — shown to customers)</span></label>
+              <input
+                type="text"
+                value={form.displayName}
+                onChange={(e) => set('displayName', e.target.value)}
+                placeholder={`e.g. Essential Fast Track, Diamond VIP, Private Group…`}
+                className={inputClass}
+              />
             </div>
 
             {/* Mode */}
@@ -648,6 +665,9 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
               <div key={rule.id} className="bg-brand-black border border-white/8 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1 min-w-0">
+                    {rule.displayName && (
+                      <p className="text-xs font-semibold text-brand-gold">{rule.displayName}</p>
+                    )}
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-brand-white">{svcLabel}</span>
                       <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${rule.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>

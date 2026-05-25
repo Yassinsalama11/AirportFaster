@@ -10,6 +10,7 @@ export interface PassengerCounts {
 
 export interface BookingPricingRule {
   id?: string;
+  displayName?: string | null;
   mode?: 'fixed' | 'cost_plus_markup' | null;
   basePriceMinor: number | null;
   currency: string;
@@ -156,16 +157,17 @@ export function getPricingRuleDisplayName(
   rule: BookingPricingRule | null | undefined,
   serviceName = 'Airport service',
 ): string {
+  if (rule?.displayName) return rule.displayName;
   switch (rule?.pricingModel ?? 'flat_per_type') {
     case 'group':
-      return 'Private group assistance';
+      return `Private group — ${serviceName}`;
     case 'tiered':
-      return 'VIP individual assistance';
+      return `VIP — ${serviceName}`;
     case 'duration_based':
-      return 'Dedicated timed assistance';
+      return `Timed session — ${serviceName}`;
     case 'flat_per_type':
     default:
-      return `Essential ${serviceName}`;
+      return serviceName;
   }
 }
 

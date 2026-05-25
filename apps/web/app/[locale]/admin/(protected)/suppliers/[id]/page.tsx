@@ -7,6 +7,7 @@ import { CoverageTab } from '@/components/admin/suppliers/CoverageTab';
 import { AirportsTab } from '@/components/admin/suppliers/AirportsTab';
 import { ServicesTab } from '@/components/admin/suppliers/ServicesTab';
 import { AvailabilityTab } from '@/components/admin/suppliers/AvailabilityTab';
+import { SupplierStatusToggle } from '@/components/admin/suppliers/SupplierStatusToggle';
 
 interface SupplierContact {
   id: string;
@@ -128,8 +129,8 @@ export default async function SupplierDetailPage({
   const [supplierResponse, airportsResponse, servicesResponse] = await Promise.all([
     adminApiCall<{ supplier: Supplier }>(`/api/admin/suppliers/${id}`),
     adminApiCall<{ items: AirportOption[] }>('/api/admin/airports?pageSize=100'),
-    adminApiCall<{ items: Array<{ id: string; slug: string; translations: Array<{ locale: string; name: string }> }> }>(
-      '/api/admin/services?pageSize=200',
+    adminApiCall<{ services: Array<{ id: string; slug: string; translations: Array<{ locale: string; name: string }> }> }>(
+      '/api/admin/services',
     ),
   ]);
 
@@ -140,7 +141,7 @@ export default async function SupplierDetailPage({
   const supplier = supplierResponse.data.supplier;
   const allAirports = airportsResponse.success ? airportsResponse.data.items : [];
   const allServices = servicesResponse.success
-    ? servicesResponse.data.items.map((s) => {
+    ? servicesResponse.data.services.map((s) => {
         const enName = s.translations.find((t) => t.locale === 'en')?.name;
         return { id: s.id, name: enName ?? s.slug, slug: s.slug };
       })
@@ -160,6 +161,7 @@ export default async function SupplierDetailPage({
             {supplier.status}
           </span>
         </div>
+        <SupplierStatusToggle supplierId={supplier.id} currentStatus={supplier.status} />
       </div>
 
       {/* Tabs */}

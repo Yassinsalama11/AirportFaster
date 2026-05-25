@@ -11,6 +11,7 @@ export const PromoStatusSchema = z.enum(['active', 'inactive', 'expired']);
 export const PricingRuleBaseSchema = z.object({
   airportServiceId: z.string().uuid(),
   supplierId: z.string().uuid().optional().nullable(),
+  displayName: z.string().trim().max(200).optional().nullable(),
   mode: PricingModeSchema,
   direction: PricingDirectionSchema.default('both'),
   pricingModel: PricingModelSchema.default('flat_per_type'),

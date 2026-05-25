@@ -57,7 +57,7 @@ const ALLOWED_TRANSITIONS: Record<string, BookingStatus[]> = {
     'cancelled_with_refund',
     'failed',
   ],
-  pending_payment: ['pending', 'paid', 'cancelled', 'failed'],
+  pending_payment: ['pending', 'paid', 'in_progress', 'under_investigation', 'cancelled', 'cancelled_no_refund', 'cancelled_with_refund', 'failed', 'refunded'],
   paid: [
     'pending_supplier_assignment',
     'in_progress',

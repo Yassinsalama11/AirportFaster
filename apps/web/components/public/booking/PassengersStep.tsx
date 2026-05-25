@@ -84,6 +84,7 @@ interface PassengersStepProps {
   serviceId?: string | undefined;
   passengerPricing?: Record<string, number> | null;
   pricingRules?: BookingPricingRule[] | undefined;
+  initialRuleId?: string;
   prefill?: PrefillData;
   summary: SummaryProps;
   labels: {
@@ -236,6 +237,7 @@ export function PassengersStep({
   serviceId,
   passengerPricing,
   pricingRules,
+  initialRuleId,
   prefill,
   summary,
   labels,
@@ -243,6 +245,7 @@ export function PassengersStep({
   const router = useRouter();
   const [form, setForm] = useState<BookingFormData>(() => {
     const base = createDefaultForm();
+    if (initialRuleId) base.selectedPricingRuleId = initialRuleId;
     if (!prefill) return base;
     const adults = prefill.adults ?? 1;
     const children = prefill.children ?? 0;
@@ -257,6 +260,7 @@ export function PassengersStep({
       passengerCount: passengers.length,
       passengers,
       serviceDate: prefill.date ?? base.serviceDate,
+      ...(initialRuleId && { selectedPricingRuleId: initialRuleId }),
     };
   });
   const [errors, setErrors] = useState<FieldErrorMap>({});

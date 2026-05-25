@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { Zap, Users, Armchair, Star, Shield, Plane } from 'lucide-react';
 import { SchemaScript } from '@/components/public/SchemaScript';
 import { breadcrumbSchema, itemListSchema } from '@/lib/schema';
 import { localeAlternates, ogLocales } from '@/lib/seo';
@@ -42,14 +43,15 @@ export async function generateMetadata({
   };
 }
 
-const SERVICE_ICONS: Record<string, string> = {
-  'fast-track': '⚡',
-  'fast_track': '⚡',
-  'meet-and-greet': '🤝',
-  'meet_and_greet': '🤝',
-  'lounge-access': '🛋️',
-  'lounge_access': '🛋️',
-};
+function ServiceIcon({ slug }: { slug: string }) {
+  const s = slug.replace(/-/g, '_');
+  if (s.includes('fast_track')) return <Zap className="w-7 h-7" />;
+  if (s.includes('meet') || s.includes('greet')) return <Users className="w-7 h-7" />;
+  if (s.includes('lounge') || s.includes('vip')) return <Armchair className="w-7 h-7" />;
+  if (s.includes('security') || s.includes('premium')) return <Shield className="w-7 h-7" />;
+  if (s.includes('transfer') || s.includes('flight')) return <Plane className="w-7 h-7" />;
+  return <Star className="w-7 h-7" />;
+}
 
 export default async function ServicesDirectoryPage({
   params,
@@ -112,15 +114,15 @@ export default async function ServicesDirectoryPage({
               const description =
                 service.translations.find((tr) => tr.locale === locale)?.description ??
                 service.translations.find((tr) => tr.locale === 'en')?.description ?? '';
-              const icon = service.icon ?? SERVICE_ICONS[service.slug] ?? '✈️';
-
               return (
                 <Link
                   key={service.id}
                   href={`/services/${service.slug}`}
                   className="block bg-surface border border-line rounded-2xl p-6 hover:border-brand-gold/30 hover:shadow-card-hover shadow-card transition-all flex flex-col"
                 >
-                  <div className="text-3xl mb-4">{icon}</div>
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-brand-gold/15 text-brand-gold-dark mb-4">
+                    <ServiceIcon slug={service.slug} />
+                  </div>
                   <h2 className="text-lg font-semibold text-ink mb-2">{name}</h2>
                   {description && (
                     <p className="text-sm text-ink-2 mb-4 flex-1">{description}</p>

@@ -18,6 +18,7 @@ export const CreateSupplierBodySchema = z.object({
     .length(3)
     .transform((v) => v.toUpperCase())
     .optional(),
+  commissionPercent: z.coerce.number().min(0).max(100).optional().nullable(),
   notes: z.string().trim().max(5000).optional(),
 });
 

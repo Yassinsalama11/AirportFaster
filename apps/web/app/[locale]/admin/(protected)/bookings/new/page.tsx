@@ -24,7 +24,7 @@ export const metadata = {
 
 export default async function NewBookingPage() {
   const airportsResponse = await adminApiCall<{ items: AirportOption[] }>(
-    '/api/admin/airports?pageSize=200&include=services',
+    '/api/admin/airports?pageSize=100',
   );
   const airports = airportsResponse.success ? airportsResponse.data.items : [];
 

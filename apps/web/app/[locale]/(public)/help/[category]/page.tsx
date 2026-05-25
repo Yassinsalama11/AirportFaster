@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { setRequestLocale } from 'next-intl/server';
 import {
   ArrowRight,
   ChevronRight,
@@ -21,8 +22,6 @@ import { FadeIn, FadeInStagger, FadeInItem } from '@/components/ui/fade-in';
 
 const BASE_URL = process.env['NEXT_PUBLIC_BASE_URL'] ?? 'https://airportfaster.com';
 
-// STATIC: move to CMS when admin FAQ builder is live
-
 interface FaqItem {
   question: string;
   answer: string;
@@ -36,7 +35,9 @@ interface HelpCategory {
   faqs: FaqItem[];
 }
 
-const HELP_CATEGORIES: Record<string, HelpCategory> = {
+type LocaleCategories = Record<string, HelpCategory>;
+
+const HELP_CATEGORIES_EN: LocaleCategories = {
   booking: {
     slug: 'booking',
     title: 'Booking',
@@ -166,7 +167,146 @@ const HELP_CATEGORIES: Record<string, HelpCategory> = {
   },
 };
 
-const VALID_SLUGS = Object.keys(HELP_CATEGORIES);
+const HELP_CATEGORIES_AR: LocaleCategories = {
+  booking: {
+    slug: 'booking',
+    title: 'الحجز',
+    description: 'كل ما تحتاج معرفته حول إجراء حجز مع AirportFaster.',
+    icon: CalendarCheck,
+    faqs: [
+      {
+        question: 'كيف أحجز خدمة مطار؟',
+        answer:
+          'ابحث عن مطار المغادرة باستخدام شريط البحث في الصفحة الرئيسية أو دليل المطارات. اختر الخدمة التي تحتاجها، وحدد تاريخ سفرك، وأكمل الحجز بتفاصيل الاتصال والدفع. ستتلقى رسالة تأكيد فورية عبر البريد الإلكتروني.',
+      },
+      {
+        question: 'ما المعلومات التي أحتاجها لإتمام الحجز؟',
+        answer:
+          'ستحتاج إلى رقم رحلتك وتاريخ السفر وعدد الركاب وعنوان بريد إلكتروني صالح. قد تتطلب بعض الخدمات أيضًا رقم جواز سفرك أو تفاصيل وثيقة سفر أخرى.',
+      },
+      {
+        question: 'هل يمكنني الحجز نيابةً عن شخص آخر؟',
+        answer:
+          'نعم، يمكنك الحجز نيابةً عن شخص آخر. أدخل اسمه كمسافر رئيسي أثناء الدفع، وتأكد من حصوله على تأكيد الحجز لتقديمه في المطار.',
+      },
+      {
+        question: 'كم مسبقًا ينبغي أن أحجز؟',
+        answer:
+          'نوصي بالحجز قبل 24 إلى 48 ساعة على الأقل من تاريخ سفرك. في المطارات المزدحمة أو أوقات الذروة، يضمن الحجز المبكر توافر الخدمة ويمنح موردينا الوقت الكافي للاستعداد.',
+      },
+      {
+        question: 'هل يمكنني حجز خدمات متعددة لرحلة واحدة؟',
+        answer:
+          'نعم. يمكنك حجز خدمات متعددة (مثل المسار السريع والوصول إلى الصالة) لنفس الرحلة. ستُصدر لكل خدمة تأكيد حجز منفصل.',
+      },
+    ],
+  },
+  payment: {
+    slug: 'payment',
+    title: 'الدفع',
+    description: 'طرق الدفع والأمان ومعلومات الفواتير.',
+    icon: CreditCard,
+    faqs: [
+      {
+        question: 'ما طرق الدفع التي يقبلها AirportFaster؟',
+        answer:
+          'نقبل جميع بطاقات الائتمان والخصم الرئيسية بما فيها Visa وMastercard وAmerican Express. تتم معالجة المدفوعات بأمان عبر Stripe.',
+      },
+      {
+        question: 'هل معلومات الدفع الخاصة بي آمنة؟',
+        answer:
+          'نعم. يتولى Stripe، وهو معالج دفع معتمد وفق معيار PCI DSS المستوى الأول، جميع بيانات الدفع. لا يخزن AirportFaster أرقام بطاقاتك الأصلية على خوادمنا.',
+      },
+      {
+        question: 'متى يتم خصم المبلغ من حسابي؟',
+        answer:
+          'يتم الخصم فور إتمام الحجز. ستظهر الرسوم على كشف حسابك بمجرد تأكيد حجزك.',
+      },
+      {
+        question: 'هل سأتلقى إيصالًا؟',
+        answer:
+          'نعم. يتضمن بريد تأكيد الحجز إيصالًا كاملًا بالدفع. يمكنك أيضًا التواصل مع support@airportfaster.com إذا كنت بحاجة إلى فاتورة ضريبة القيمة المضافة أو وثائق إضافية.',
+      },
+      {
+        question: 'بأي عملة تُعرض الأسعار؟',
+        answer:
+          'جميع الأسعار على AirportFaster باليورو (€). إذا كانت بطاقتك بعملة مختلفة، فسيطبق بنكك سعر الصرف الخاص به عند الخصم.',
+      },
+    ],
+  },
+  cancellation: {
+    slug: 'cancellation',
+    title: 'الإلغاء والاسترداد',
+    description: 'كيفية الإلغاء ومواعيد الاسترداد وسياسة الإلغاء لدينا.',
+    icon: RotateCcw,
+    faqs: [
+      {
+        question: 'كيف أُلغي حجزي؟',
+        answer:
+          'للإلغاء، يرجى التواصل مع فريق الدعم على support@airportfaster.com مع ذكر رقم مرجع حجزك. سنعالج طلب الإلغاء ونؤكده عبر البريد الإلكتروني.',
+      },
+      {
+        question: 'ما سياسة الاسترداد لدى AirportFaster؟',
+        answer:
+          'نقدم استردادًا كاملًا للإلغاءات التي تتم قبل 24 ساعة على الأقل من موعد الخدمة. الإلغاءات التي تتم في غضون 24 ساعة من الخدمة غير قابلة للاسترداد، إلا في حالات إلغاء الرحلة أو الظروف الاستثنائية.',
+      },
+      {
+        question: 'كم تستغرق عملية الاسترداد؟',
+        answer:
+          'تُعالج عمليات الاسترداد عادةً خلال 5 إلى 10 أيام عمل، وذلك حسب شركة بطاقة الائتمان. ستتلقى رسالة تأكيد بالبريد الإلكتروني عند بدء عملية الاسترداد.',
+      },
+      {
+        question: 'ماذا يحدث إذا ألغت شركة الطيران رحلتي؟',
+        answer:
+          'إذا ألغت شركة الطيران رحلتك، يرجى التواصل معنا مع إرفاق رقم الحجز وإثبات الإلغاء (مثل بريد إشعار شركة الطيران). سنرتب استردادًا كاملًا أو إعادة حجز مجانية.',
+      },
+      {
+        question: 'هل يمكنني تعديل حجزي بدلًا من إلغائه؟',
+        answer:
+          'نعم. يرجى التواصل مع support@airportfaster.com في أقرب وقت ممكن مع ذكر رقم الحجز والتغييرات المطلوبة. سنبذل قصارى جهدنا لاستيعاب التعديلات وفقًا للتوافر.',
+      },
+    ],
+  },
+  suppliers: {
+    slug: 'suppliers',
+    title: 'مزودو الخدمة',
+    description: 'تعرف على الشركاء الموثوقين الذين يقدمون خدمات المطار لديك.',
+    icon: Handshake,
+    faqs: [
+      {
+        question: 'من هم مزودو الخدمة؟',
+        answer:
+          'تُقدِّم خدمات المطار لدينا شبكة من شركات المساعدة في المطارات المدققة والمحترفة، وبعضها مباشرة من قِبَل سلطات المطارات. جميع الموردين شركاء متعاقدون ذوو سجلات حافلة في قطاع السفر.',
+      },
+      {
+        question: 'كيف يتم التحقق من مزودي الخدمة؟',
+        answer:
+          'يخضع كل مورد لعملية تأهيل صارمة تشمل التحقق من المراجع ومراجعة التراخيص وفحص التأمين والتقييمات التشغيلية. نراقب أداء الموردين باستمرار من خلال تعليقات العملاء.',
+      },
+      {
+        question: 'ماذا يحدث إذا أخفق المورد في تقديم الخدمة؟',
+        answer:
+          'رضا العملاء أولويتنا. إذا فشل المورد في تقديم الخدمة المحجوزة، يرجى التواصل معنا فورًا على support@airportfaster.com. سنحقق في الأمر ونرتب تعويضًا أو استردادًا كاملًا حسب ما يقتضيه الوضع.',
+      },
+      {
+        question: 'هل يتوفر الموردون في جميع الأوقات؟',
+        answer:
+          'تتفاوت توافرية الخدمة حسب المطار والمورد. يظهر التوافر عند إتمام الحجز. في المطارات العاملة على مدار الساعة، تتوفر الخدمات عادةً طوال اليوم؛ أما المطارات الأصغر فقد تعمل في ساعات محدودة.',
+      },
+    ],
+  },
+};
+
+const CATEGORIES_BY_LOCALE: Record<string, LocaleCategories> = {
+  en: HELP_CATEGORIES_EN,
+  ar: HELP_CATEGORIES_AR,
+};
+
+function getCategories(locale: string): LocaleCategories {
+  return CATEGORIES_BY_LOCALE[locale] ?? HELP_CATEGORIES_EN;
+}
+
+const VALID_SLUGS = Object.keys(HELP_CATEGORIES_EN);
 
 export async function generateStaticParams(): Promise<{ category: string }[]> {
   return VALID_SLUGS.map((slug) => ({ category: slug }));
@@ -178,14 +318,13 @@ export async function generateMetadata({
   params: Promise<{ category: string; locale: string }>;
 }): Promise<Metadata> {
   const { category, locale } = await params;
-  const cat = HELP_CATEGORIES[category];
+  const cat = getCategories(locale)[category];
   if (!cat) return { title: 'Not Found' };
-  const BASE_URL = process.env['NEXT_PUBLIC_BASE_URL'] ?? 'https://airportfaster.com';
 
   return {
-    title: `${cat.title} Help | AirportFaster`,
+    title: `${cat.title} | AirportFaster`,
     description: cat.description,
-    openGraph: { title: `${cat.title} Help | AirportFaster`, description: cat.description, url: `${BASE_URL}/${locale}/help/${category}`, ...ogLocales(locale) },
+    openGraph: { title: `${cat.title} | AirportFaster`, description: cat.description, url: `${BASE_URL}/${locale}/help/${category}`, ...ogLocales(locale) },
     alternates: localeAlternates(`/help/${category}`, locale),
   };
 }
@@ -193,30 +332,38 @@ export async function generateMetadata({
 export default async function HelpCategoryPage({
   params,
 }: {
-  params: Promise<{ category: string }>;
+  params: Promise<{ category: string; locale: string }>;
 }) {
-  const { category } = await params;
-  const cat = HELP_CATEGORIES[category];
+  const { category, locale } = await params;
+  setRequestLocale(locale);
+
+  const categories = getCategories(locale);
+  const cat = categories[category];
 
   if (!cat) {
     notFound();
   }
 
+  const enCat = HELP_CATEGORIES_EN[category];
+  const breadcrumbTitle = enCat?.title ?? cat.title;
+
   const breadcrumb = breadcrumbSchema([
     { name: 'Home', url: BASE_URL },
     { name: 'Help Centre', url: `${BASE_URL}/help` },
-    { name: cat.title, url: `${BASE_URL}/help/${category}` },
+    { name: breadcrumbTitle, url: `${BASE_URL}/help/${category}` },
   ]);
 
   const faqSchemaData = faqSchema(cat.faqs);
   const Icon = cat.icon;
   const otherCategories = VALID_SLUGS
     .filter((slug) => slug !== category)
-    .map((slug) => HELP_CATEGORIES[slug])
+    .map((slug) => categories[slug])
     .filter((c): c is HelpCategory => c !== undefined);
 
+  const isAr = locale === 'ar';
+
   return (
-    <div className="bg-bg">
+    <div className="bg-bg" dir={isAr ? 'rtl' : 'ltr'}>
       <SchemaScript schema={breadcrumb} />
       <SchemaScript schema={faqSchemaData} />
 
@@ -224,11 +371,11 @@ export default async function HelpCategoryPage({
       <div className="max-w-6xl mx-auto px-5 lg:px-8 pt-6">
         <nav className="flex items-center gap-2 text-sm text-ink-3">
           <Link href="/" className="hover:text-ink transition-colors">
-            Home
+            {isAr ? 'الرئيسية' : 'Home'}
           </Link>
           <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
           <Link href="/help" className="hover:text-ink transition-colors">
-            Help Centre
+            {isAr ? 'مركز المساعدة' : 'Help Centre'}
           </Link>
           <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
           <span className="text-ink">{cat.title}</span>
@@ -244,7 +391,7 @@ export default async function HelpCategoryPage({
             </div>
             <div>
               <Badge variant="secondary" className="mb-3">
-                Help Centre
+                {isAr ? 'مركز المساعدة' : 'Help Centre'}
               </Badge>
               <h1 className="text-display-md font-bold text-ink tracking-tight mb-3">
                 {cat.title}
@@ -258,11 +405,11 @@ export default async function HelpCategoryPage({
       {/* Two-column layout */}
       <section className="max-w-6xl mx-auto px-5 lg:px-8 pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-10 lg:gap-12">
-          {/* Sidebar — related topics */}
+          {/* Sidebar */}
           <aside className="lg:sticky lg:top-24 self-start">
             <div className="bg-surface rounded-2xl border border-line p-5 shadow-card">
               <p className="text-xs font-semibold uppercase tracking-wider text-ink-3 mb-4">
-                Related topics
+                {isAr ? 'مواضيع ذات صلة' : 'Related topics'}
               </p>
               <nav className="flex flex-col gap-1">
                 {otherCategories.map((c) => {
@@ -310,16 +457,18 @@ export default async function HelpCategoryPage({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                   <div>
                     <h3 className="text-body-lg font-semibold text-ink mb-1 tracking-tight">
-                      Still need help?
+                      {isAr ? 'هل لا تزال بحاجة إلى مساعدة؟' : 'Still need help?'}
                     </h3>
                     <p className="text-sm text-ink-2">
-                      Our support team is available 24/7 to assist with any questions.
+                      {isAr
+                        ? 'فريق الدعم لدينا متاح على مدار الساعة طوال أيام الأسبوع للإجابة على أسئلتك.'
+                        : 'Our support team is available 24/7 to assist with any questions.'}
                     </p>
                   </div>
                   <Button variant="default" size="lg" asChild>
                     <a href="mailto:support@airportfaster.com">
                       <Mail className="w-4 h-4" />
-                      Contact support
+                      {isAr ? 'تواصل مع الدعم' : 'Contact support'}
                       <ArrowRight className="w-4 h-4 rtl:rotate-180" />
                     </a>
                   </Button>

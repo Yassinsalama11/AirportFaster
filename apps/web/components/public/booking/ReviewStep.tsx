@@ -293,8 +293,7 @@ export function ReviewStep({
   const pricingOptionName = getPricingRuleDisplayName(baseRule, serviceName);
   const passengerCounts = getPassengerCounts(form.passengers);
   const subtotalMinor = calculatePriceMinor(baseRule, passengerCounts);
-  const serviceFeeMinor = subtotalMinor > 0 ? Math.round(subtotalMinor * 0.05) : 0;
-  const totalMinor = subtotalMinor + serviceFeeMinor;
+  const totalMinor = subtotalMinor;
 
   async function handleConfirm() {
     if (!form) return;
@@ -396,7 +395,6 @@ export function ReviewStep({
               label={pricingOptionName}
               value={formatCurrency(subtotalMinor, currency)}
             />
-            <Row label="Service fee (5%)" value={formatCurrency(serviceFeeMinor, currency)} />
             <div className="flex items-center justify-between pt-3 mt-1">
               <span className="text-base font-bold text-ink">Total</span>
               <span className="text-xl font-bold text-brand-gold">{formatCurrency(totalMinor, currency)}</span>

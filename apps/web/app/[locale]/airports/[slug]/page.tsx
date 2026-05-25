@@ -14,6 +14,8 @@ import {
   selectPricingRule,
   calculatePriceMinor,
   formatCurrency,
+  getPricingRuleDisplayName,
+  getPricingRuleDescription,
   type BookingPricingRule,
 } from '@/lib/booking-pricing';
 
@@ -378,50 +380,78 @@ export default async function AirportLandingPage({
       {activeServices.length > 0 && (
         <section id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <h2 className="text-2xl font-bold text-ink mb-8">{t('services_at', { name })}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-10">
             {activeServices.map((as) => {
               const svcName = getServiceLocalName(as.service, locale);
               const svcDesc = getServiceLocalDescription(as.service, locale);
-              // Priority-aware rule selection (matches the booking flow logic
-              // in Section F so the same price the customer sees on the card
-              // is the one applied at checkout).
-              const baseRule = selectPricingRule(as.pricingRules);
-              const oneAdultMinor = baseRule
-                ? calculatePriceMinor(baseRule, { adults: 1, children: 0, infants: 0 })
-                : 0;
-              const priceStr =
-                baseRule && oneAdultMinor > 0
-                  ? formatCurrency(oneAdultMinor, baseRule.currency)
-                  : null;
-
-              const bookHref = forwardedQuery
-                ? `/airports/${slug}/book?serviceId=${as.id}&${forwardedQuery}`
-                : `/airports/${slug}/book?serviceId=${as.id}`;
+              const activeRules = (as.pricingRules ?? []).filter((r) => (r as unknown as { status: string }).status !== 'inactive');
+              const sortedRules = [...activeRules].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
               return (
-                <div
-                  key={as.id}
-                  className="bg-surface border border-line rounded-2xl p-6 shadow-card hover:shadow-card-hover hover:border-brand-gold/30 transition-all flex flex-col gap-4"
-                >
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-brand-gold/15 text-brand-gold-dark">
-                    <ServiceIcon slug={as.service.slug} />
+                <div key={as.id} className="bg-surface border border-line rounded-2xl shadow-card overflow-hidden">
+                  {/* Service header */}
+                  <div className="p-6 flex items-start gap-4 border-b border-line/60">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-brand-gold/15 text-brand-gold-dark shrink-0">
+                      <ServiceIcon slug={as.service.slug} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg text-ink mb-1">{svcName}</h3>
+                      {svcDesc && <p className="text-sm text-ink-2 leading-relaxed">{svcDesc}</p>}
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-ink mb-1">{svcName}</h3>
-                    {svcDesc && <p className="text-sm text-ink-2 leading-relaxed">{svcDesc}</p>}
-                  </div>
-                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-line">
-                    {priceStr ? (
-                      <span className="text-sm font-medium text-ink-2">
-                        {t('from_price', { price: priceStr })}
-                      </span>
-                    ) : (
+
+                  {/* Experience options */}
+                  {sortedRules.length > 0 ? (
+                    <div className="divide-y divide-line/60">
+                      {sortedRules.map((rule) => {
+                        const ruleName = getPricingRuleDisplayName(rule, svcName);
+                        const ruleDesc = getPricingRuleDescription(rule);
+                        const priceMinor = calculatePriceMinor(rule, { adults: 1, children: 0, infants: 0 });
+                        const priceStr = priceMinor > 0 ? formatCurrency(priceMinor, rule.currency) : null;
+
+                        const ruleQuery = new URLSearchParams();
+                        ruleQuery.set('serviceId', as.id);
+                        ruleQuery.set('ruleId', rule.id ?? '');
+                        if (forwardedQuery) {
+                          for (const [k, v] of new URLSearchParams(forwardedQuery).entries()) {
+                            ruleQuery.set(k, v);
+                          }
+                        }
+
+                        return (
+                          <div key={rule.id} className="flex items-center gap-4 px-6 py-4 hover:bg-brand-gold/5 transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-ink text-sm">{ruleName}</p>
+                              <p className="text-xs text-ink-3 mt-0.5 leading-relaxed">{ruleDesc}</p>
+                            </div>
+                            <div className="flex items-center gap-4 shrink-0">
+                              {priceStr ? (
+                                <span className="text-sm font-bold text-ink whitespace-nowrap">
+                                  {t('from_price', { price: priceStr })}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-ink-3">{t('price_on_request')}</span>
+                              )}
+                              <Button asChild variant="gold" size="sm">
+                                <Link href={`/airports/${slug}/book?${ruleQuery.toString()}`}>
+                                  {t('book_this_service')}
+                                </Link>
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between px-6 py-4">
                       <span className="text-sm text-ink-3">{t('price_on_request')}</span>
-                    )}
-                    <Button asChild variant="gold" size="sm">
-                      <Link href={bookHref}>{t('book_this_service')}</Link>
-                    </Button>
-                  </div>
+                      <Button asChild variant="gold" size="sm">
+                        <Link href={`/airports/${slug}/book?serviceId=${as.id}${forwardedQuery ? `&${forwardedQuery}` : ''}`}>
+                          {t('book_this_service')}
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}

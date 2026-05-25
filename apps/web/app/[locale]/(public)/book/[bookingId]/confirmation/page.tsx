@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ExternalLink } from 'lucide-react';
 import { PurchaseTracker } from '@/components/public/PurchaseTracker';
+
+const SINAI_TAXI_URL = process.env['NEXT_PUBLIC_SINAI_TAXI_URL'] ?? 'https://sinaitaxi.com';
 
 export const metadata: Metadata = {
   title: 'Booking Confirmation — AirportFaster',
@@ -141,6 +144,23 @@ export default async function ConfirmationPage({ params, searchParams }: Confirm
                 Manage your booking
               </Link>
             )}
+          </div>
+
+          {/* Transfer upsell */}
+          <div className="mt-6 p-5 bg-surface-2 border border-line rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-ink">Need a transfer to or from the airport?</p>
+              <p className="text-xs text-ink-3 mt-0.5">Book a comfortable transfer at a great price with our partner.</p>
+            </div>
+            <a
+              href={SINAI_TAXI_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 border border-brand-gold/40 text-brand-gold text-sm font-semibold rounded-xl hover:bg-brand-gold/10 transition-colors"
+            >
+              Book a Transfer
+              <ExternalLink className="w-4 h-4" />
+            </a>
           </div>
         </div>
       </div>

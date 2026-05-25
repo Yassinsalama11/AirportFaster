@@ -600,6 +600,7 @@ model PricingRule {
   id                     String            @id @default(uuid()) @db.Uuid
   airportServiceId       String            @map("airport_service_id") @db.Uuid
   supplierId             String?           @map("supplier_id") @db.Uuid
+  displayName            String?           @map("display_name") @db.VarChar(200)
   mode                   PricingMode
   direction              PricingDirection  @default(both)
   pricingModel           PricingModel      @default(flat_per_type) @map("pricing_model")
@@ -764,9 +765,10 @@ model Supplier {
   countryCode      String?        @map("country_code") @db.Char(2)
   rating           Decimal?       @db.Decimal(3, 2)
   reliabilityScore Decimal?       @map("reliability_score") @db.Decimal(3, 2)
-  payoutCurrency   String?        @map("payout_currency") @db.VarChar(3)
-  notes            String?
-  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  payoutCurrency      String?        @map("payout_currency") @db.VarChar(3)
+  commissionPercent   Decimal?       @map("commission_percent") @db.Decimal(5, 2)
+  notes               String?
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz
 
   contacts         SupplierContact[]
