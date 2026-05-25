@@ -1,6 +1,20 @@
 'use client';
 
-import { MapPin, ChevronDown, Plus, Minus, Calendar, Search, Sparkles, Users, Coffee, Zap } from 'lucide-react';
+import {
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Coffee,
+  ExternalLink,
+  MapPin,
+  Minus,
+  Plus,
+  Search,
+  Sparkles,
+  Users,
+  Zap,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
@@ -20,6 +34,8 @@ interface Airport {
   translations: AirportTranslation[];
   airportServices?: ServiceRef[];
 }
+
+const SINAI_TAXI_URL = process.env['NEXT_PUBLIC_SINAI_TAXI_URL'] ?? 'https://sinaitaxi.com';
 
 function getAirportName(airport: Airport, locale: string): string {
   return (
@@ -44,10 +60,39 @@ function ServiceIcon({ slug, className }: { slug: string; className?: string }) 
   return <Sparkles className={className} />;
 }
 
-function tomorrowISO(): string {
+function toLocalISO(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function todayISO(): string {
   const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return toLocalISO(d);
+}
+
+function parseLocalISO(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1);
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, amount: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function formatDateLabel(value: string, locale: string): string {
+  const formatterLocale = locale === 'ar' ? 'ar-EG' : 'en-GB';
+  return new Intl.DateTimeFormat(formatterLocale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(parseLocalISO(value));
 }
 
 interface ComposerLabels {
@@ -68,6 +113,7 @@ interface ComposerLabels {
   loadingAirports: string;
   ctaBook: string;
   ctaSearching: string;
+  transferCta: string;
 }
 
 export function BookingComposer({ labels }: { labels: ComposerLabels }) {
@@ -86,7 +132,10 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
   const [serviceOpen, setServiceOpen] = useState(false);
   const serviceRef = useRef<HTMLDivElement>(null);
 
-  const [date, setDate] = useState(tomorrowISO());
+  const [date, setDate] = useState(todayISO());
+  const [dateOpen, setDateOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
+  const dateRef = useRef<HTMLDivElement>(null);
 
   const [travelersOpen, setTravelersOpen] = useState(false);
   const travelersRef = useRef<HTMLDivElement>(null);
@@ -115,6 +164,7 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
     function handler(e: PointerEvent) {
       if (!airportRef.current?.contains(e.target as Node)) setAirportOpen(false);
       if (!serviceRef.current?.contains(e.target as Node)) setServiceOpen(false);
+      if (!dateRef.current?.contains(e.target as Node)) setDateOpen(false);
       if (!travelersRef.current?.contains(e.target as Node)) setTravelersOpen(false);
     }
     document.addEventListener('pointerdown', handler);
@@ -127,10 +177,14 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
     return airports
       .filter((a) => {
         const name = getAirportName(a, locale).toLowerCase();
+        const city = a.city.toLowerCase();
+        const country = a.country.toLowerCase();
+        const iataCode = a.iataCode.toLowerCase();
         return (
-          name.startsWith(q) ||
-          a.city.toLowerCase().startsWith(q) ||
-          a.iataCode.toLowerCase().startsWith(q)
+          name.includes(q) ||
+          city.includes(q) ||
+          country.includes(q) ||
+          iataCode.includes(q)
         );
       })
       .slice(0, 12);
@@ -148,7 +202,7 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
 
   const selectedService = availableServices.find((s) => s.id === selectedServiceId);
   const totalTravelers = adults + children + infants;
-  const minDate = tomorrowISO();
+  const minDate = todayISO();
 
   function selectAirport(a: Airport) {
     setSelectedAirport(a);
@@ -197,7 +251,7 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
             </div>
           </button>
           {airportOpen && (
-            <div className="absolute z-50 start-0 end-0 top-[calc(100%+0.5rem)] bg-surface border border-line shadow-popover rounded-2xl p-2 max-h-80 overflow-y-auto">
+            <div className="absolute z-50 start-0 top-[calc(100%+0.5rem)] w-screen max-w-[calc(100vw-32px)] sm:w-max sm:min-w-[420px] sm:max-w-[520px] bg-surface border border-line shadow-popover rounded-2xl p-2 max-h-80 overflow-y-auto">
               <div className="px-2 pb-2 pt-1">
                 <input
                   type="text"
@@ -220,16 +274,15 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
                     onClick={() => selectAirport(a)}
                     className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-surface-2 transition-colors text-start"
                   >
-                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-gold/15 text-brand-gold-dark">
-                      <MapPin className="w-4 h-4" />
+                    <span className="inline-flex h-8 min-w-10 shrink-0 items-center justify-center rounded-full bg-brand-gold/15 px-2 font-mono text-xs font-bold text-brand-gold-dark" dir="ltr">
+                      {a.iataCode}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-ink">
+                      <span className="block whitespace-normal text-sm font-semibold leading-snug text-ink">
                         {getAirportName(a, locale)}
                       </span>
-                      <span className="block truncate text-xs text-ink-3">
-                        <span className="font-mono text-brand-gold-dark" dir="ltr">{a.iataCode}</span>
-                        {' · '}{a.city}, {a.country}
+                      <span className="block whitespace-normal text-xs leading-snug text-ink-3">
+                        {a.city}, {a.country}
                       </span>
                     </span>
                   </button>
@@ -283,23 +336,36 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
         </div>
 
         {/* Date */}
-        <div className="md:border-s md:border-line md:ps-2">
-          <label className="block px-4 py-3 rounded-2xl hover:bg-surface-2 transition-colors cursor-pointer">
+        <div ref={dateRef} className="relative md:border-s md:border-line md:ps-2">
+          <button
+            type="button"
+            onClick={() => setDateOpen((v) => !v)}
+            className="block w-full px-4 py-3 rounded-2xl hover:bg-surface-2 transition-colors text-start"
+          >
             <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-3 mb-0.5">
               {labels.dateLabel}
             </p>
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-between gap-2 min-w-0">
               <Calendar className="w-4 h-4 text-brand-gold-dark shrink-0" />
-              <input
-                type="date"
-                value={date}
-                min={minDate}
-                onChange={(e) => setDate(e.target.value)}
-                dir="ltr"
-                className="bg-transparent text-sm text-ink font-semibold outline-none w-full"
-              />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                {formatDateLabel(date, locale)}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-ink-3 shrink-0 transition-transform ${dateOpen ? 'rotate-180' : ''}`} />
             </div>
-          </label>
+          </button>
+          {dateOpen && (
+            <CalendarPopover
+              locale={locale}
+              selectedDate={date}
+              minDate={minDate}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              onSelect={(value) => {
+                setDate(value);
+                setDateOpen(false);
+              }}
+            />
+          )}
         </div>
 
         {/* Travelers */}
@@ -351,7 +417,7 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
       </div>
 
       {/* Submit */}
-      <div className="mt-2 flex">
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <button
           type="submit"
           disabled={!canSubmit || submitting}
@@ -372,9 +438,125 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
             </>
           )}
         </button>
+        <a
+          href={SINAI_TAXI_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-2 px-6 py-3.5 text-sm font-bold text-ink transition-colors hover:border-brand-gold/50 hover:bg-brand-gold/10"
+        >
+          {labels.transferCta}
+          <ExternalLink className="w-4 h-4" />
+        </a>
       </div>
     </form>
   );
+}
+
+function CalendarPopover({
+  locale,
+  selectedDate,
+  minDate,
+  month,
+  onMonthChange,
+  onSelect,
+}: {
+  locale: string;
+  selectedDate: string;
+  minDate: string;
+  month: Date;
+  onMonthChange: (date: Date) => void;
+  onSelect: (value: string) => void;
+}) {
+  const formatterLocale = locale === 'ar' ? 'ar-EG' : 'en-GB';
+  const minMonth = startOfMonth(parseLocalISO(minDate));
+  const previousDisabled = month <= minMonth;
+  const days = buildCalendarDays(month);
+  const weekdayLabels = getWeekdayLabels(formatterLocale);
+  const monthLabel = new Intl.DateTimeFormat(formatterLocale, {
+    month: 'long',
+    year: 'numeric',
+  }).format(month);
+
+  return (
+    <div className="absolute z-50 start-1/2 top-[calc(100%+0.5rem)] w-screen max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-2xl border border-line bg-surface p-4 shadow-popover sm:start-0 sm:w-80 sm:translate-x-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => onMonthChange(addMonths(month, -1))}
+          disabled={previousDisabled}
+          aria-label="Previous month"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+        </button>
+        <p className="text-sm font-bold text-ink">{monthLabel}</p>
+        <button
+          type="button"
+          onClick={() => onMonthChange(addMonths(month, 1))}
+          aria-label="Next month"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-surface-2"
+        >
+          <ChevronRight className="h-4 w-4 rtl:rotate-180" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-ink-3">
+        {weekdayLabels.map((label) => (
+          <span key={label} className="py-1">
+            {label}
+          </span>
+        ))}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {days.map((day) => {
+          const value = toLocalISO(day.date);
+          const disabled = value < minDate;
+          const selected = value === selectedDate;
+          const muted = day.date.getMonth() !== month.getMonth();
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onSelect(value)}
+              disabled={disabled}
+              className={[
+                'h-10 rounded-full text-sm font-semibold transition-colors',
+                selected
+                  ? 'bg-brand-gold text-brand-black'
+                  : 'text-ink hover:bg-surface-2',
+                muted && !selected ? 'text-ink-3' : '',
+                disabled ? 'cursor-not-allowed opacity-30 hover:bg-transparent' : '',
+              ].join(' ')}
+            >
+              {day.date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function buildCalendarDays(month: Date): Array<{ date: Date }> {
+  const firstOfMonth = startOfMonth(month);
+  const mondayBasedStart = (firstOfMonth.getDay() + 6) % 7;
+  const firstVisible = new Date(firstOfMonth);
+  firstVisible.setDate(firstOfMonth.getDate() - mondayBasedStart);
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(firstVisible);
+    date.setDate(firstVisible.getDate() + index);
+    return { date };
+  });
+}
+
+function getWeekdayLabels(locale: string): string[] {
+  const monday = new Date(2026, 4, 25);
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
+  });
 }
 
 function TravelerRow({

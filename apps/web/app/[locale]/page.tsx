@@ -249,6 +249,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                       loadingAirports: t('compose_loading_airports'),
                       ctaBook: t('compose_cta_book'),
                       ctaSearching: t('compose_cta_searching'),
+                      transferCta: t('compose_transfer_cta'),
                     }}
                   />
                 </div>

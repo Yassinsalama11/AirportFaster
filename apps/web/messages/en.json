@@ -203,6 +203,7 @@
     "compose_loading_airports": "Loading airports…",
     "compose_cta_book": "Book now",
     "compose_cta_searching": "Loading…",
+    "compose_transfer_cta": "Book a Transfer",
     "compose_travelers_count": "{count, plural, =1 {1 traveler} other {# travelers}}",
     "trust_secure": "Secure checkout",
     "trust_instant": "Instant confirmation",

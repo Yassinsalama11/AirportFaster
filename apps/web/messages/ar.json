@@ -200,6 +200,7 @@
     "compose_loading_airports": "جاري تحميل المطارات…",
     "compose_cta_book": "احجز الآن",
     "compose_cta_searching": "جارٍ التحميل…",
+    "compose_transfer_cta": "احجز انتقالاً",
     "compose_travelers_count": "{count, plural, =0 {لا مسافرين} =1 {مسافر واحد} =2 {مسافران} other {# مسافرين}}",
     "trust_secure": "دفع آمن",
     "trust_instant": "تأكيد فوري",
