@@ -11,7 +11,6 @@ import { localeAlternates, ogLocales } from '@/lib/seo';
 import { SchemaScript } from '@/components/public/SchemaScript';
 import { airportSchema, breadcrumbSchema } from '@/lib/schema';
 import {
-  selectPricingRule,
   calculatePriceMinor,
   formatCurrency,
   getPricingRuleDisplayName,

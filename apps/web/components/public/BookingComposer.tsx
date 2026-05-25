@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Coffee,
-  ExternalLink,
   MapPin,
   Minus,
   Plus,
@@ -34,8 +33,6 @@ interface Airport {
   translations: AirportTranslation[];
   airportServices?: ServiceRef[];
 }
-
-const SINAI_TAXI_URL = process.env['NEXT_PUBLIC_SINAI_TAXI_URL'] ?? 'https://sinaitaxi.com';
 
 function getAirportName(airport: Airport, locale: string): string {
   return (
