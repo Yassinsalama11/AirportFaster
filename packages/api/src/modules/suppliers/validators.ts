@@ -84,8 +84,35 @@ export const AddCoverageBodySchema = z.object({
   priority: z.number().int().min(0).default(0),
 });
 
+export const DayOfWeekSchema = z.enum([
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]);
+
+const timeStringSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, {
+  message: 'Time must be HH:MM (24h)',
+});
+
+export const SupplierAvailabilityDaySchema = z.object({
+  dayOfWeek: DayOfWeekSchema,
+  openTime: timeStringSchema,
+  closeTime: timeStringSchema,
+  isAvailable: z.boolean(),
+});
+
+export const PutSupplierAvailabilityBodySchema = z.object({
+  schedule: z.array(SupplierAvailabilityDaySchema).min(1).max(7),
+});
+
 export type CreateSupplierBody = z.infer<typeof CreateSupplierBodySchema>;
 export type UpdateSupplierBody = z.infer<typeof UpdateSupplierBodySchema>;
 export type ListSuppliersQuery = z.infer<typeof ListSuppliersQuerySchema>;
 export type CreateContactBody = z.infer<typeof CreateContactBodySchema>;
 export type AddCoverageBody = z.infer<typeof AddCoverageBodySchema>;
+export type SupplierAvailabilityDay = z.infer<typeof SupplierAvailabilityDaySchema>;
+export type PutSupplierAvailabilityBody = z.infer<typeof PutSupplierAvailabilityBodySchema>;

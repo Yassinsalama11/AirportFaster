@@ -1,4 +1,4 @@
-import { Prisma } from '@airportfaster/db';
+import { Prisma, prisma, type DayOfWeek } from '@airportfaster/db';
 import {
   findSupplierById,
   createSupplier,
@@ -20,8 +20,88 @@ import type {
   ListSuppliersQuery,
   CreateContactBody,
   AddCoverageBody,
+  PutSupplierAvailabilityBody,
+  SupplierAvailabilityDay,
 } from './validators.js';
 import type { SupplierRecord } from './repository.js';
+
+const ALL_DAYS: DayOfWeek[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+const DEFAULT_AVAILABILITY: SupplierAvailabilityDay[] = ALL_DAYS.map((d) => ({
+  dayOfWeek: d,
+  openTime: '08:00',
+  closeTime: '22:00',
+  isAvailable: true,
+}));
+
+export async function getSupplierAvailabilityService(
+  supplierId: string,
+): Promise<SupplierAvailabilityDay[]> {
+  await getSupplierService(supplierId);
+  const rows = await prisma.supplierAvailability.findMany({
+    where: { supplierId },
+  });
+  // Merge defaults: any missing day returns the default 08:00-22:00 open row.
+  const byDay = new Map(rows.map((r) => [r.dayOfWeek, r]));
+  return ALL_DAYS.map((day) => {
+    const row = byDay.get(day);
+    if (row) {
+      return {
+        dayOfWeek: day,
+        openTime: row.openTime,
+        closeTime: row.closeTime,
+        isAvailable: row.isAvailable,
+      };
+    }
+    return DEFAULT_AVAILABILITY.find((d) => d.dayOfWeek === day)!;
+  });
+}
+
+export async function updateSupplierAvailabilityService(
+  supplierId: string,
+  data: PutSupplierAvailabilityBody,
+): Promise<SupplierAvailabilityDay[]> {
+  await getSupplierService(supplierId);
+  for (const day of data.schedule) {
+    if (day.closeTime <= day.openTime) {
+      throw new SupplierError(
+        `closeTime must be after openTime for ${day.dayOfWeek}`,
+        'INVALID_TIME_RANGE',
+        400,
+      );
+    }
+  }
+  await prisma.$transaction(
+    data.schedule.map((day) =>
+      prisma.supplierAvailability.upsert({
+        where: {
+          supplierId_dayOfWeek: { supplierId, dayOfWeek: day.dayOfWeek },
+        },
+        create: {
+          supplierId,
+          dayOfWeek: day.dayOfWeek,
+          openTime: day.openTime,
+          closeTime: day.closeTime,
+          isAvailable: day.isAvailable,
+        },
+        update: {
+          openTime: day.openTime,
+          closeTime: day.closeTime,
+          isAvailable: day.isAvailable,
+        },
+      }),
+    ),
+  );
+  return getSupplierAvailabilityService(supplierId);
+}
 
 export class SupplierError extends Error {
   constructor(

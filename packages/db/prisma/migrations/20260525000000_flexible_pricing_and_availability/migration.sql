@@ -7,6 +7,22 @@ CREATE TYPE "PricingDirection" AS ENUM ('arrival', 'departure', 'both');
 -- CreateEnum
 CREATE TYPE "DayOfWeek" AS ENUM ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday');
 
+-- AlterEnum
+-- This migration adds more than one value to an enum.
+-- With PostgreSQL versions 11 and earlier, this is not possible
+-- in a single migration. This can be worked around by creating
+-- multiple migrations, each migration adding only one value to
+-- the enum.
+
+
+ALTER TYPE "BookingStatus" ADD VALUE 'pending';
+ALTER TYPE "BookingStatus" ADD VALUE 'under_investigation';
+ALTER TYPE "BookingStatus" ADD VALUE 'cancelled_no_refund';
+ALTER TYPE "BookingStatus" ADD VALUE 'cancelled_with_refund';
+
+-- AlterEnum
+ALTER TYPE "BookingSource" ADD VALUE 'manual';
+
 -- AlterTable
 ALTER TABLE "airport_services" ADD COLUMN     "direction_available" "PricingDirection" NOT NULL DEFAULT 'both',
 ADD COLUMN     "max_lead_days" INTEGER NOT NULL DEFAULT 365,

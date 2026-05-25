@@ -945,6 +945,7 @@ model SearchSynonym {
 
 enum BookingStatus {
   draft
+  pending
   pending_payment
   paid
   pending_supplier_assignment
@@ -952,8 +953,11 @@ enum BookingStatus {
   pending_supplier_confirmation
   confirmed
   in_progress
+  under_investigation
   completed
   cancelled
+  cancelled_no_refund
+  cancelled_with_refund
   refunded
   failed
 }
@@ -976,6 +980,7 @@ enum BookingSource {
   service_page
   direct
   api
+  manual
 }
 
 enum NoteVisibility {

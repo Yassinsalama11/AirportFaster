@@ -45,18 +45,45 @@ export class BookingError extends Error {
 // ── Allowed status transitions ────────────────────────────────────────────────
 
 const ALLOWED_TRANSITIONS: Record<string, BookingStatus[]> = {
-  draft: ['pending_payment', 'cancelled'],
-  pending_payment: ['paid', 'cancelled', 'failed'],
-  paid: ['pending_supplier_assignment', 'cancelled', 'refunded'],
+  draft: ['pending', 'pending_payment', 'cancelled'],
+  pending: [
+    'pending_payment',
+    'paid',
+    'in_progress',
+    'under_investigation',
+    'completed',
+    'cancelled',
+    'cancelled_no_refund',
+    'cancelled_with_refund',
+    'failed',
+  ],
+  pending_payment: ['pending', 'paid', 'cancelled', 'failed'],
+  paid: [
+    'pending_supplier_assignment',
+    'in_progress',
+    'under_investigation',
+    'cancelled',
+    'cancelled_with_refund',
+    'refunded',
+  ],
   pending_supplier_assignment: ['supplier_assigned', 'cancelled'],
   supplier_assigned: ['pending_supplier_confirmation', 'cancelled'],
   pending_supplier_confirmation: ['confirmed', 'cancelled'],
-  confirmed: ['in_progress', 'cancelled'],
-  in_progress: ['completed', 'cancelled'],
-  completed: ['refunded'],
+  confirmed: ['in_progress', 'under_investigation', 'cancelled', 'cancelled_with_refund'],
+  in_progress: ['completed', 'under_investigation', 'cancelled', 'cancelled_with_refund'],
+  under_investigation: [
+    'in_progress',
+    'completed',
+    'cancelled',
+    'cancelled_no_refund',
+    'cancelled_with_refund',
+  ],
+  completed: ['refunded', 'under_investigation'],
   cancelled: ['refunded'],
+  cancelled_no_refund: [],
+  cancelled_with_refund: ['refunded'],
   refunded: [],
-  failed: ['cancelled'],
+  failed: ['cancelled', 'pending_payment'],
 };
 
 function isTransitionAllowed(from: BookingStatus, to: BookingStatus): boolean {
@@ -71,7 +98,13 @@ function hashToken(raw: string): string {
 
 // ── Create Booking ────────────────────────────────────────────────────────────
 
-export async function createBookingService(data: CreateBookingBody): Promise<{
+export async function createBookingService(
+  data: CreateBookingBody,
+  options?: {
+    source?: 'homepage' | 'airport_page' | 'service_page' | 'direct' | 'api' | 'manual';
+    initialStatus?: 'draft' | 'pending';
+  },
+): Promise<{
   bookingId: string;
   bookingReference: string;
   manageToken: string;
@@ -147,6 +180,8 @@ export async function createBookingService(data: CreateBookingBody): Promise<{
     currency: priceResult.displayCurrency,
     totalMinor: totalWithTax,
     manageTokenHash: tokenHash,
+    ...(options?.source ? { source: options.source } : {}),
+    ...(options?.initialStatus ? { initialStatus: options.initialStatus } : {}),
   });
 
   // 7. Snapshot price.

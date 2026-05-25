@@ -231,6 +231,38 @@ export async function bookingPublicRoutes(fastify: FastifyInstance): Promise<voi
 // ── Admin routes ──────────────────────────────────────────────────────────────
 
 export async function bookingAdminRoutes(fastify: FastifyInstance): Promise<void> {
+  // POST /api/admin/bookings — Manual booking creation by staff
+  fastify.post(
+    '/',
+    { preHandler: requirePermission('bookings.write') },
+    async (request, reply) => {
+      const parseResult = CreateBookingBodySchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid booking request',
+            details: parseResult.error.flatten(),
+          },
+        });
+      }
+
+      try {
+        const result = await createBookingService(parseResult.data, {
+          source: 'manual',
+          initialStatus: 'pending',
+        });
+        return reply.status(201).send({ success: true, data: result });
+      } catch (error) {
+        if (error instanceof BookingError) {
+          return sendBookingError(reply, error);
+        }
+        throw error;
+      }
+    },
+  );
+
   // GET /api/admin/bookings — List
   fastify.get(
     '/',

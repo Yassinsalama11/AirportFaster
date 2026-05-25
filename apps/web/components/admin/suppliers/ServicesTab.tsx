@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface SupplierService {
   id: string;
   serviceId: string;
@@ -42,10 +40,9 @@ export function ServicesTab({ supplierId, supplierServices }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/suppliers/${supplierId}/services`, {
+      const res = await fetch(`/api/admin/suppliers/${supplierId}/services`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ serviceId: serviceId.trim() }),
       });
       const json = await res.json();
@@ -66,13 +63,17 @@ export function ServicesTab({ supplierId, supplierServices }: Props) {
   async function handleUnlink(svcId: string) {
     if (!confirm('Unlink this service?')) return;
     try {
-      await fetch(`${API_BASE}/api/admin/suppliers/${supplierId}/services/${svcId}`, {
+      const res = await fetch(`/api/admin/suppliers/${supplierId}/services/${svcId}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        alert(json?.error?.message ?? 'Failed to unlink service');
+        return;
+      }
       router.refresh();
     } catch {
-      // silently ignore
+      alert('Network error. Please try again.');
     }
   }
 

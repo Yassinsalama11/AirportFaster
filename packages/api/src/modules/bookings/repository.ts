@@ -95,6 +95,16 @@ export async function createBookingRecord(data: {
   currency: string;
   totalMinor: number;
   manageTokenHash: string;
+  source?: 'homepage' | 'airport_page' | 'service_page' | 'direct' | 'api' | 'manual';
+  initialStatus?:
+    | 'draft'
+    | 'pending'
+    | 'pending_payment'
+    | 'paid'
+    | 'pending_supplier_assignment'
+    | 'supplier_assigned'
+    | 'pending_supplier_confirmation'
+    | 'confirmed';
 }): Promise<BookingRecord> {
   // Token expires 90 days after service date (generous window for post-service queries).
   const manageTokenExpiresAt = new Date(data.serviceDateTime);
@@ -112,7 +122,8 @@ export async function createBookingRecord(data: {
       locale: data.locale,
       currency: data.currency,
       totalMinor: data.totalMinor,
-      status: 'draft',
+      status: data.initialStatus ?? 'draft',
+      ...(data.source ? { source: data.source } : {}),
       manageTokenHash: data.manageTokenHash,
       manageTokenExpiresAt,
     },

@@ -14,6 +14,7 @@ import {
   LinkAirportBodySchema,
   LinkServiceBodySchema,
   AddCoverageBodySchema,
+  PutSupplierAvailabilityBodySchema,
 } from './validators.js';
 import {
   SupplierError,
@@ -30,6 +31,8 @@ import {
   unlinkServiceService,
   addCoverageService,
   removeCoverageService,
+  getSupplierAvailabilityService,
+  updateSupplierAvailabilityService,
 } from './service.js';
 
 function sendSupplierError(reply: FastifyReply, error: SupplierError) {
@@ -423,6 +426,65 @@ export async function supplierRoutes(fastify: FastifyInstance): Promise<void> {
           metadata: { coverageId: paramsResult.data.coverageId },
         });
         return reply.status(204).send();
+      } catch (error) {
+        if (error instanceof SupplierError) return sendSupplierError(reply, error);
+        throw error;
+      }
+    },
+  );
+
+  // GET /:id/availability — fetch the 7-day open/close schedule for a supplier
+  fastify.get(
+    '/:id/availability',
+    { preHandler: requirePermission('suppliers.read') },
+    async (request, reply) => {
+      const paramsResult = SupplierIdParamsSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid supplier id' },
+        });
+      }
+      try {
+        const schedule = await getSupplierAvailabilityService(paramsResult.data.id);
+        return reply.status(200).send({ success: true, data: { schedule } });
+      } catch (error) {
+        if (error instanceof SupplierError) return sendSupplierError(reply, error);
+        throw error;
+      }
+    },
+  );
+
+  // PUT /:id/availability — replace the 7-day schedule for a supplier
+  fastify.put(
+    '/:id/availability',
+    { preHandler: requirePermission('suppliers.write') },
+    async (request, reply) => {
+      const paramsResult = SupplierIdParamsSchema.safeParse(request.params);
+      const bodyResult = PutSupplierAvailabilityBodySchema.safeParse(request.body);
+      if (!paramsResult.success || !bodyResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid availability request',
+            details: bodyResult.success ? undefined : bodyResult.error.flatten(),
+          },
+        });
+      }
+      try {
+        const schedule = await updateSupplierAvailabilityService(
+          paramsResult.data.id,
+          bodyResult.data,
+        );
+        await writeAuditLog({
+          ...getAuditCtx(request),
+          action: 'suppliers.availability.update',
+          entityType: 'supplier',
+          entityId: paramsResult.data.id,
+          metadata: { dayCount: bodyResult.data.schedule.length },
+        });
+        return reply.status(200).send({ success: true, data: { schedule } });
       } catch (error) {
         if (error instanceof SupplierError) return sendSupplierError(reply, error);
         throw error;

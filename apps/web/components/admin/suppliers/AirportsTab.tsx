@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface SupplierAirport {
   id: string;
   airportId: string;
@@ -53,10 +51,9 @@ export function AirportsTab({ supplierId, supplierAirports, allAirports }: Props
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/suppliers/${supplierId}/airports`, {
+      const res = await fetch(`/api/admin/suppliers/${supplierId}/airports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ airportId: selectedAirportId }),
       });
       const json = await res.json();
@@ -77,13 +74,17 @@ export function AirportsTab({ supplierId, supplierAirports, allAirports }: Props
   async function handleUnlink(airportId: string) {
     if (!confirm('Unlink this airport?')) return;
     try {
-      await fetch(`${API_BASE}/api/admin/suppliers/${supplierId}/airports/${airportId}`, {
+      const res = await fetch(`/api/admin/suppliers/${supplierId}/airports/${airportId}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        alert(json?.error?.message ?? 'Failed to unlink airport');
+        return;
+      }
       router.refresh();
     } catch {
-      // silently ignore
+      alert('Network error. Please try again.');
     }
   }
 

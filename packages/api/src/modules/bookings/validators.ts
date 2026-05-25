@@ -72,6 +72,7 @@ export type CreateBookingBody = z.infer<typeof CreateBookingBodySchema>;
 
 export const PatchBookingStatusBodySchema = z.object({
   status: z.enum([
+    'pending',
     'pending_payment',
     'paid',
     'pending_supplier_assignment',
@@ -79,8 +80,11 @@ export const PatchBookingStatusBodySchema = z.object({
     'pending_supplier_confirmation',
     'confirmed',
     'in_progress',
+    'under_investigation',
     'completed',
     'cancelled',
+    'cancelled_no_refund',
+    'cancelled_with_refund',
     'refunded',
     'failed',
   ]),

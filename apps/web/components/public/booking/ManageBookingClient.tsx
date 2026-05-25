@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { useLocale } from 'next-intl';
 import { Search, Edit2, AlertTriangle, MessageSquare, MapPin, Calendar, User, X, CheckCircle2, ArrowLeft } from 'lucide-react';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
-
 interface Passenger { id: string; fullName: string; type: string; }
 interface AirportTr { locale: string; name: string; }
 interface ServiceTr { locale: string; name: string; }
@@ -225,7 +223,7 @@ function LookupForm({
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/public/bookings/lookup`, {
+      const res = await fetch(`/api/public/bookings/lookup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reference: reference.trim().toUpperCase(), email: email.trim() }),
@@ -434,7 +432,7 @@ function EditTab({
       const changedPax = passengers.filter((p, i) => p.fullName !== booking.passengers[i]?.fullName);
       if (changedPax.length > 0) body['passengers'] = changedPax;
 
-      const res = await fetch(`${API_BASE}/api/public/bookings/manage/edit`, {
+      const res = await fetch(`/api/public/bookings/manage/edit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -553,7 +551,7 @@ function CancelTab({
   async function handleCancel() {
     setError(null); setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/public/bookings/manage/cancel`, {
+      const res = await fetch(`/api/public/bookings/manage/cancel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, bookingId: booking.id, reason: reason.trim() || undefined }),
@@ -681,7 +679,7 @@ function ComplaintTab({
     e.preventDefault();
     setError(null); setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/public/bookings/manage/complaint`, {
+      const res = await fetch(`/api/public/bookings/manage/complaint`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, bookingId, category, message: message.trim() }),
