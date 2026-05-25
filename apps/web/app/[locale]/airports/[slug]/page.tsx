@@ -10,6 +10,12 @@ import { getInternalLinksForEntity } from '@/lib/internal-links';
 import { localeAlternates, ogLocales } from '@/lib/seo';
 import { SchemaScript } from '@/components/public/SchemaScript';
 import { airportSchema, breadcrumbSchema } from '@/lib/schema';
+import {
+  selectPricingRule,
+  calculatePriceMinor,
+  formatCurrency,
+  type BookingPricingRule,
+} from '@/lib/booking-pricing';
 
 // Revalidate the page itself every 60s — combined with per-fetch tags this means
 // admin edits (`revalidateTag('airport-<slug>')`) propagate immediately, while normal
@@ -145,12 +151,6 @@ function getServiceLocalDescription(service: Service, locale: string) {
   );
 }
 
-function formatPrice(minor: number | null | undefined, _currency: string): string | null {
-  if (minor == null) return null;
-  // Platform-wide: always show prices in Euros regardless of the per-record currency.
-  return `€${(minor / 100).toFixed(2)}`;
-}
-
 function ServiceIcon({ slug }: { slug: string }) {
   if (slug === 'fast_track') return <Zap className="w-6 h-6" />;
   if (slug === 'meet_and_greet') return <Users className="w-6 h-6" />;
@@ -199,10 +199,21 @@ export async function generateMetadata({
 
 export default async function AirportLandingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; locale: string }>;
+  searchParams: Promise<{ date?: string; adults?: string; children?: string; infants?: string }>;
 }) {
   const { slug, locale } = await params;
+  const sp = await searchParams;
+  // Forward the home-composer query params to every Book CTA so the user
+  // doesn't lose their date / passenger selections when picking a plan.
+  const forwardedSearch = new URLSearchParams();
+  if (sp.date) forwardedSearch.set('date', sp.date);
+  if (sp.adults) forwardedSearch.set('adults', sp.adults);
+  if (sp.children) forwardedSearch.set('children', sp.children);
+  if (sp.infants) forwardedSearch.set('infants', sp.infants);
+  const forwardedQuery = forwardedSearch.toString();
   const airport = await getAirport(slug);
 
   if (!airport || airport.status !== 'active') {
@@ -376,15 +387,21 @@ export default async function AirportLandingPage({
             {activeServices.map((as) => {
               const svcName = getServiceLocalName(as.service, locale);
               const svcDesc = getServiceLocalDescription(as.service, locale);
-              const baseRule =
-                as.pricingRules && as.pricingRules.length > 0
-                  ? [...as.pricingRules].sort(
-                      (a, b) => (a.basePriceMinor ?? 0) - (b.basePriceMinor ?? 0),
-                    )[0]
+              // Priority-aware rule selection (matches the booking flow logic
+              // in Section F so the same price the customer sees on the card
+              // is the one applied at checkout).
+              const baseRule = selectPricingRule(as.pricingRules as BookingPricingRule[] | undefined);
+              const oneAdultMinor = baseRule
+                ? calculatePriceMinor(baseRule, { adults: 1, children: 0, infants: 0 })
+                : 0;
+              const priceStr =
+                baseRule && oneAdultMinor > 0
+                  ? formatCurrency(oneAdultMinor, baseRule.currency)
                   : null;
-              const priceStr = baseRule
-                ? formatPrice(baseRule.basePriceMinor, baseRule.currency)
-                : null;
+
+              const bookHref = forwardedQuery
+                ? `/airports/${slug}/book?serviceId=${as.id}&${forwardedQuery}`
+                : `/airports/${slug}/book?serviceId=${as.id}`;
 
               return (
                 <div
@@ -407,9 +424,7 @@ export default async function AirportLandingPage({
                       <span className="text-sm text-ink-3">{t('price_on_request')}</span>
                     )}
                     <Button asChild variant="gold" size="sm">
-                      <Link href={`/airports/${slug}/book?serviceId=${as.id}`}>
-                        {t('book_this_service')}
-                      </Link>
+                      <Link href={bookHref}>{t('book_this_service')}</Link>
                     </Button>
                   </div>
                 </div>
@@ -425,7 +440,15 @@ export default async function AirportLandingPage({
           <h2 className="text-2xl font-bold text-ink mb-2">{t('cta_title')}</h2>
           <p className="text-ink-2 mb-8">{t('cta_subtitle', { name })}</p>
           <Button asChild variant="gold" size="xl">
-            <Link href={`/airports/${slug}/book`}>{t('cta_button', { iata: airport.iataCode })}</Link>
+            <Link
+              href={
+                forwardedQuery
+                  ? `/airports/${slug}/book?${forwardedQuery}`
+                  : `/airports/${slug}/book`
+              }
+            >
+              {t('cta_button', { iata: airport.iataCode })}
+            </Link>
           </Button>
         </div>
       </section>
