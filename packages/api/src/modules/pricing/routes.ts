@@ -120,7 +120,9 @@ export async function pricingAdminRoutes(fastify: FastifyInstance): Promise<void
       }
       const result = await quote({
         airportServiceId: parseResult.data.airportServiceId,
+        pricingRuleId: parseResult.data.pricingRuleId,
         passengers: parseResult.data.passengers,
+        direction: parseResult.data.direction,
         currency: parseResult.data.currency,
         promoCode: parseResult.data.promoCode,
         supplierId: parseResult.data.supplierId,

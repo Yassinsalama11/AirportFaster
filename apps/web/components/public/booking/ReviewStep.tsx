@@ -8,6 +8,7 @@ import {
   calculatePriceMinor,
   formatCurrency,
   getPassengerCounts,
+  getPricingRuleDisplayName,
   selectPricingRule,
   type BookingPricingRule,
 } from '@/lib/booking-pricing';
@@ -195,6 +196,7 @@ export function ReviewStep({
 
         const payload = {
           airportServiceId: currentServiceId,
+          ...(currentForm.selectedPricingRuleId && { pricingRuleId: currentForm.selectedPricingRuleId }),
           serviceDate: currentForm.serviceDate,
           direction: flightDirection,
           passengers: currentForm.passengers.map((passenger) => {
@@ -286,8 +288,9 @@ export function ReviewStep({
     );
   }
 
-  const baseRule = selectPricingRule(pricingRules, form.flight.direction);
+  const baseRule = selectPricingRule(pricingRules, form.flight.direction, form.selectedPricingRuleId);
   const currency = baseRule?.currency ?? 'EUR';
+  const pricingOptionName = getPricingRuleDisplayName(baseRule, serviceName);
   const passengerCounts = getPassengerCounts(form.passengers);
   const subtotalMinor = calculatePriceMinor(baseRule, passengerCounts);
   const serviceFeeMinor = subtotalMinor > 0 ? Math.round(subtotalMinor * 0.05) : 0;
@@ -332,6 +335,7 @@ export function ReviewStep({
         <Row label="Airport" value={`${airportName} (${iataCode})`} />
         <Row label="Location" value={`${city}, ${country}`} />
         {serviceName && <Row label="Service" value={serviceName} />}
+        {baseRule && <Row label="Category" value={pricingOptionName} />}
       </section>
 
       {/* Passengers */}
@@ -389,7 +393,7 @@ export function ReviewStep({
         {subtotalMinor > 0 ? (
           <div className="space-y-0">
             <Row
-              label={`Service price × ${form.passengerCount} passenger${form.passengerCount !== 1 ? 's' : ''}`}
+              label={pricingOptionName}
               value={formatCurrency(subtotalMinor, currency)}
             />
             <Row label="Service fee (5%)" value={formatCurrency(serviceFeeMinor, currency)} />

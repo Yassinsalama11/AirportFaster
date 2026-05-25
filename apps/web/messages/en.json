@@ -389,6 +389,11 @@
     "section_contact": "Contact details",
     "section_flight": "Flight details",
     "section_flight_help": "Help us match your booking with your flight.",
+    "section_experience": "Choose your experience",
+    "section_experience_help": "Select the service category that matches the assistance you need.",
+    "included_travelers": "Included travelers",
+    "extra_traveler": "Extra traveler",
+    "selected_option": "Selected",
     "passenger_type": "Passenger type",
     "adult": "Adult",
     "child": "Child",
@@ -407,7 +412,8 @@
     "page_payment_title": "Complete payment",
     "page_payment_sub": "Secure checkout powered by Stripe.",
     "edit_details": "Edit details",
-    "error_service_required": "Please choose a service before continuing."
+    "error_service_required": "Please choose a service before continuing.",
+    "error_pricing_required": "Please choose your service category before continuing."
   },
   "services_list": {
     "meta_title": "Airport Services — Fast Track, Meet & Greet, Lounge | AirportFaster",

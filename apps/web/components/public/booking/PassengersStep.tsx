@@ -13,7 +13,10 @@ import { cn } from '@/lib/utils';
 import {
   calculatePriceMinor,
   formatCurrency,
+  getApplicablePricingRules,
   getPassengerCounts,
+  getPricingRuleDescription,
+  getPricingRuleDisplayName,
   selectPricingRule,
   type BookingPricingRule,
 } from '@/lib/booking-pricing';
@@ -49,6 +52,7 @@ export interface FlightData {
 export interface BookingFormData {
   passengerCount: number;
   serviceDate: string;
+  selectedPricingRuleId: string;
   passengers: PassengerData[];
   contact: ContactData;
   flight: FlightData;
@@ -90,6 +94,11 @@ interface PassengersStepProps {
     sectionContact: string;
     sectionFlight: string;
     sectionFlightHelp: string;
+    sectionExperience: string;
+    sectionExperienceHelp: string;
+    includedTravelers: string;
+    extraTraveler: string;
+    selectedOption: string;
     sectionSpecial: string;
     firstName: string;
     lastName: string;
@@ -122,6 +131,7 @@ interface PassengersStepProps {
     errorRequired: string;
     errorEmail: string;
     errorServiceRequired: string;
+    errorPricingRequired: string;
   };
 }
 
@@ -139,6 +149,7 @@ function createDefaultForm(): BookingFormData {
   return {
     passengerCount: 1,
     serviceDate: getDefaultServiceDate(),
+    selectedPricingRuleId: '',
     passengers: [createPassenger()],
     contact: { email: '', phone: '', firstName: '', lastName: '' },
     flight: { direction: '', flightNumber: '', dateTime: '', terminal: '', originDestIata: '' },
@@ -310,11 +321,26 @@ export function PassengersStep({
     }
   }
 
+  function selectPricingOption(ruleId: string) {
+    setForm((prev) => ({ ...prev, selectedPricingRuleId: ruleId }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next['selectedPricingRuleId'];
+      return next;
+    });
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError(null);
     if (!serviceId) {
       setSubmitError(labels.errorServiceRequired);
+      return;
+    }
+    if (pricingOptions.length > 0 && !liveRule?.id) {
+      setErrors((prev) => ({ ...prev, selectedPricingRuleId: labels.errorPricingRequired }));
+      const el = document.querySelector('[data-field="selectedPricingRuleId"]');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     const validationErrors = validateForm(form, labels.errorRequired, labels.errorEmail);
@@ -326,7 +352,12 @@ export function PassengersStep({
       return;
     }
 
-    if (!safeSessionSet(BOOKING_FORM_KEY, JSON.stringify(form))) {
+    const formForStorage: BookingFormData = {
+      ...form,
+      selectedPricingRuleId: form.selectedPricingRuleId || liveRule?.id || '',
+    };
+
+    if (!safeSessionSet(BOOKING_FORM_KEY, JSON.stringify(formForStorage))) {
       setSubmitError('Your browser blocked booking storage. Please disable private browsing or try another browser.');
       return;
     }
@@ -339,7 +370,8 @@ export function PassengersStep({
     router.push(`/airports/${slug}/book/review${serviceId ? `?serviceId=${serviceId}` : ''}`);
   }
 
-  const selectedRule = selectPricingRule(pricingRules, form.flight.direction);
+  const pricingOptions = getApplicablePricingRules(pricingRules, form.flight.direction);
+  const selectedRule = selectPricingRule(pricingRules, form.flight.direction, form.selectedPricingRuleId);
   const pp = selectedRule?.passengerPricing ?? passengerPricing;
   const hasPerTypePricing = pp != null && ('adult' in pp || 'child' in pp || 'infant' in pp);
   const fallbackFlatRule: BookingPricingRule | null = hasPerTypePricing
@@ -355,6 +387,9 @@ export function PassengersStep({
     ? calculatePriceMinor(liveRule, getPassengerCounts(form.passengers))
     : null;
   const liveCurrency = liveRule?.currency ?? summary.pricingCurrency ?? 'EUR';
+  const passengerCounts = getPassengerCounts(form.passengers);
+  const selectedRuleName = getPricingRuleDisplayName(liveRule, summary.serviceName);
+  const specialSectionNumber = form.passengers.length + (pricingOptions.length > 0 ? 5 : 4);
 
   const trustItems = [
     { icon: Shield, label: labels.trustSecure },
@@ -662,11 +697,80 @@ export function PassengersStep({
           </div>
         </Card>
 
+        {/* Service experience */}
+        {pricingOptions.length > 0 && (
+          <Card className="p-6">
+            <h2 className="text-body-lg font-semibold text-ink mb-1 flex items-center gap-3">
+              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-gold/15 text-brand-gold-dark text-xs font-bold">
+                {form.passengers.length + 4}
+              </span>
+              {labels.sectionExperience}
+            </h2>
+            <p className="text-sm text-ink-3 mb-5 ms-10">{labels.sectionExperienceHelp}</p>
+
+            <div className="grid gap-3" data-field="selectedPricingRuleId">
+              {pricingOptions.map((rule) => {
+                const isSelected = (form.selectedPricingRuleId || liveRule?.id) === rule.id;
+                const totalMinor = calculatePriceMinor(rule, passengerCounts);
+                return (
+                  <button
+                    key={rule.id ?? `${rule.pricingModel}-${rule.priority ?? 0}`}
+                    type="button"
+                    onClick={() => rule.id && selectPricingOption(rule.id)}
+                    className={cn(
+                      'w-full rounded-2xl border p-4 text-start transition-all',
+                      isSelected
+                        ? 'border-brand-gold bg-brand-gold/10 shadow-card'
+                        : 'border-line bg-surface hover:border-brand-gold/40 hover:bg-surface-2',
+                    )}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-ink">
+                          {getPricingRuleDisplayName(rule, summary.serviceName)}
+                        </p>
+                        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-3">
+                          {getPricingRuleDescription(rule)}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-3">
+                          {rule.groupSizeIncluded != null && (
+                            <span className="rounded-full bg-surface-2 px-3 py-1">
+                              {labels.includedTravelers}: {rule.groupSizeIncluded}
+                            </span>
+                          )}
+                          {rule.extraPassengerMinor != null && rule.extraPassengerMinor > 0 && (
+                            <span className="rounded-full bg-surface-2 px-3 py-1">
+                              {labels.extraTraveler}: {formatCurrency(rule.extraPassengerMinor, rule.currency)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="sm:text-end">
+                        <p className="text-xl font-bold text-brand-gold-dark" dir="ltr">
+                          {formatCurrency(totalMinor, rule.currency)}
+                        </p>
+                        {isSelected && (
+                          <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-brand-gold-dark">
+                            {labels.selectedOption}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {getErr(errors, 'selectedPricingRuleId') && (
+              <p className="mt-2 text-xs text-red-600">{labels.errorPricingRequired}</p>
+            )}
+          </Card>
+        )}
+
         {/* Special requests */}
         <Card className="p-6">
           <h2 className="text-body-lg font-semibold text-ink mb-4 flex items-center gap-3">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-gold/15 text-brand-gold-dark text-xs font-bold">
-              {form.passengers.length + 4}
+              {specialSectionNumber}
             </span>
             {labels.sectionSpecial}
             <span className="text-xs text-ink-3 font-normal">({labels.optional})</span>
@@ -731,7 +835,7 @@ export function PassengersStep({
             {liveTotalMinor != null ? (
               <div className="pt-3 border-t border-line">
                 <div className="flex items-end justify-between">
-                  <p className="text-xs text-ink-3">Total</p>
+                  <p className="text-xs text-ink-3">{selectedRuleName}</p>
                   <p className="text-2xl font-bold text-brand-gold-dark" dir="ltr">
                     {formatCurrency(liveTotalMinor, liveCurrency)}
                   </p>

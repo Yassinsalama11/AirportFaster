@@ -9,6 +9,7 @@ export interface PassengerCounts {
 }
 
 export interface BookingPricingRule {
+  id?: string;
   basePriceMinor: number | null;
   currency: string;
   direction?: PricingDirection | null;
@@ -65,14 +66,33 @@ export function calculatePriceMinor(
 export function selectPricingRule(
   rules: BookingPricingRule[] | undefined,
   selectedDirection?: 'arrival' | 'departure' | '',
+  selectedRuleId?: string | null,
 ): BookingPricingRule | null {
-  if (!rules || rules.length === 0) return null;
+  const applicableRules = getApplicablePricingRules(rules, selectedDirection);
+  if (applicableRules.length === 0) return null;
+  if (selectedRuleId) {
+    const selected = applicableRules.find((rule) => rule.id === selectedRuleId);
+    if (selected) return selected;
+  }
+
+  return applicableRules[0] ?? null;
+}
+
+export function getApplicablePricingRules(
+  rules: BookingPricingRule[] | undefined,
+  selectedDirection?: 'arrival' | 'departure' | '',
+): BookingPricingRule[] {
+  if (!rules || rules.length === 0) return [];
   const direction = selectedDirection || undefined;
   const applicableRules = direction
     ? rules.filter((rule) => rule.direction === direction || rule.direction === 'both' || rule.direction == null)
     : rules;
 
-  return [...applicableRules].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0] ?? null;
+  return [...applicableRules].sort((a, b) => {
+    const priorityDiff = (b.priority ?? 0) - (a.priority ?? 0);
+    if (priorityDiff !== 0) return priorityDiff;
+    return (a.basePriceMinor ?? 0) - (b.basePriceMinor ?? 0);
+  });
 }
 
 export function formatCurrency(amountMinor: number | null | undefined, currency = 'EUR'): string {
@@ -86,5 +106,36 @@ export function formatCurrency(amountMinor: number | null | undefined, currency 
     }).format(amountMinor / 100);
   } catch {
     return `${safeCurrency} ${(amountMinor / 100).toFixed(2)}`;
+  }
+}
+
+export function getPricingRuleDisplayName(
+  rule: BookingPricingRule | null | undefined,
+  serviceName = 'Airport service',
+): string {
+  switch (rule?.pricingModel ?? 'flat_per_type') {
+    case 'group':
+      return 'Private group assistance';
+    case 'tiered':
+      return 'VIP individual assistance';
+    case 'duration_based':
+      return 'Dedicated timed assistance';
+    case 'flat_per_type':
+    default:
+      return `Essential ${serviceName}`;
+  }
+}
+
+export function getPricingRuleDescription(rule: BookingPricingRule | null | undefined): string {
+  switch (rule?.pricingModel ?? 'flat_per_type') {
+    case 'group':
+      return `Designed for families and small groups. Includes up to ${rule?.groupSizeIncluded ?? 1} traveler${(rule?.groupSizeIncluded ?? 1) === 1 ? '' : 's'} before extra traveler pricing applies.`;
+    case 'tiered':
+      return 'Best for VIP assistance where the first traveler has a base rate and each extra traveler is priced separately.';
+    case 'duration_based':
+      return `Reserved assistance for a fixed service duration${rule?.durationHours ? ` of ${rule.durationHours} hour${rule.durationHours === 1 ? '' : 's'}` : ''}.`;
+    case 'flat_per_type':
+    default:
+      return 'Simple per-traveler pricing for the selected airport service.';
   }
 }

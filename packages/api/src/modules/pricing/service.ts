@@ -7,9 +7,81 @@ import {
 export interface QuoteParams {
   airportServiceId: string;
   passengers: number;
+  passengerTypes?: Array<'adult' | 'child' | 'infant'>;
+  direction?: 'arrival' | 'departure' | 'transit';
+  pricingRuleId?: string;
   currency: string; // requested display currency
   promoCode?: string;
   supplierId?: string;
+}
+
+interface PassengerCounts {
+  adults: number;
+  children: number;
+  infants: number;
+}
+
+function getPassengerCounts(params: QuoteParams): PassengerCounts {
+  if (params.passengerTypes && params.passengerTypes.length > 0) {
+    return params.passengerTypes.reduce<PassengerCounts>(
+      (counts, type) => {
+        if (type === 'adult') counts.adults += 1;
+        if (type === 'child') counts.children += 1;
+        if (type === 'infant') counts.infants += 1;
+        return counts;
+      },
+      { adults: 0, children: 0, infants: 0 },
+    );
+  }
+
+  return { adults: params.passengers, children: 0, infants: 0 };
+}
+
+function totalPassengers(counts: PassengerCounts): number {
+  return counts.adults + counts.children + counts.infants;
+}
+
+function calculateModelPrice(
+  rule: Awaited<ReturnType<typeof findActiveRulesForService>>[number],
+  counts: PassengerCounts,
+  source: 'customer' | 'supplier',
+): number {
+  const total = totalPassengers(counts);
+  const base =
+    source === 'customer'
+      ? rule.basePriceMinor ?? 0
+      : rule.supplierCostMinor ?? rule.basePriceMinor ?? 0;
+  const first =
+    source === 'customer'
+      ? rule.firstPassengerMinor ?? base
+      : rule.supplierCostFirstMinor ?? rule.supplierCostMinor ?? rule.firstPassengerMinor ?? base;
+  const extra =
+    source === 'customer'
+      ? rule.extraPassengerMinor ?? 0
+      : rule.supplierCostExtraMinor ?? rule.supplierCostMinor ?? rule.extraPassengerMinor ?? 0;
+
+  switch (rule.pricingModel) {
+    case 'flat_per_type': {
+      if (source === 'customer' && rule.passengerPricing) {
+        const pax = rule.passengerPricing as Record<string, number>;
+        return (
+          (pax['adult'] ?? base) * counts.adults +
+          (pax['child'] ?? pax['adult'] ?? base) * counts.children +
+          (pax['infant'] ?? 0) * counts.infants
+        );
+      }
+      return base * total;
+    }
+    case 'tiered':
+      if (total === 0) return 0;
+      return first + Math.max(0, total - 1) * extra;
+    case 'group':
+      return base + Math.max(0, total - (rule.groupSizeIncluded ?? 1)) * extra;
+    case 'duration_based':
+      return base * total;
+    default:
+      return base * total;
+  }
 }
 
 export interface QuoteResult {
@@ -45,6 +117,9 @@ export async function quote(params: QuoteParams): Promise<QuoteResult | null> {
 
   // Filter by supplierId match if provided
   const applicable = sorted.filter((r) => {
+    if (params.direction && params.direction !== 'transit' && r.direction !== params.direction && r.direction !== 'both') {
+      return false;
+    }
     if (params.supplierId) {
       return r.supplierId === params.supplierId || r.supplierId === null;
     }
@@ -53,7 +128,11 @@ export async function quote(params: QuoteParams): Promise<QuoteResult | null> {
 
   if (applicable.length === 0) return null;
 
-  const rule = applicable[0]!;
+  const selectedRule = params.pricingRuleId
+    ? applicable.find((r) => r.id === params.pricingRuleId)
+    : undefined;
+  const rule = selectedRule ?? applicable[0]!;
+  const passengerCounts = getPassengerCounts(params);
 
   // Step 3-4: Compute base customer price from rule
   let customerPriceMinor: number;
@@ -61,12 +140,12 @@ export async function quote(params: QuoteParams): Promise<QuoteResult | null> {
   let markupMinor: number;
 
   if (rule.mode === 'fixed') {
-    customerPriceMinor = rule.basePriceMinor ?? 0;
-    supplierCostMinor = rule.basePriceMinor ?? 0;
+    customerPriceMinor = calculateModelPrice(rule, passengerCounts, 'customer');
+    supplierCostMinor = calculateModelPrice(rule, passengerCounts, 'supplier');
     markupMinor = 0;
   } else {
     // cost_plus_markup
-    const cost = rule.supplierCostMinor ?? 0;
+    const cost = calculateModelPrice(rule, passengerCounts, 'supplier');
     supplierCostMinor = cost;
     const mv = rule.markupValue ? Number(rule.markupValue) : 0;
 
@@ -78,14 +157,6 @@ export async function quote(params: QuoteParams): Promise<QuoteResult | null> {
       customerPriceMinor = Math.round(cost + mv);
     }
     markupMinor = customerPriceMinor - supplierCostMinor;
-  }
-
-  // Step 5: Apply passenger multiplier
-  if (rule.passengerPricing && params.passengers > 1) {
-    const pax = rule.passengerPricing as Record<string, number>;
-    const key = String(params.passengers);
-    const multiplier = pax[key] ?? pax['default'] ?? 1.0;
-    customerPriceMinor = Math.round(customerPriceMinor * multiplier);
   }
 
   // Step 6: Apply promo code discount

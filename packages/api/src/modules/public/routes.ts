@@ -48,7 +48,6 @@ const publicAirportDetailInclude = {
           { priority: 'desc' as const },
           { createdAt: 'desc' as const },
         ],
-        take: 1,
       },
       service: {
         include: {

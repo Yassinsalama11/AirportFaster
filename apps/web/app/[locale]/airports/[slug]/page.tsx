@@ -50,16 +50,11 @@ interface Service {
   translations: ServiceTranslation[];
 }
 
-interface PricingRule {
-  basePriceMinor: number | null;
-  currency: string;
-}
-
 interface AirportServiceRow {
   id: string;
   isActive: boolean;
   service: Service;
-  pricingRules?: PricingRule[];
+  pricingRules?: BookingPricingRule[];
 }
 
 interface AirportSeo {
@@ -390,7 +385,7 @@ export default async function AirportLandingPage({
               // Priority-aware rule selection (matches the booking flow logic
               // in Section F so the same price the customer sees on the card
               // is the one applied at checkout).
-              const baseRule = selectPricingRule(as.pricingRules as BookingPricingRule[] | undefined);
+              const baseRule = selectPricingRule(as.pricingRules);
               const oneAdultMinor = baseRule
                 ? calculatePriceMinor(baseRule, { adults: 1, children: 0, infants: 0 })
                 : 0;

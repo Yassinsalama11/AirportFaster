@@ -181,6 +181,11 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           sectionContact: t('section_contact'),
           sectionFlight: t('section_flight'),
           sectionFlightHelp: t('section_flight_help'),
+          sectionExperience: t('section_experience'),
+          sectionExperienceHelp: t('section_experience_help'),
+          includedTravelers: t('included_travelers'),
+          extraTraveler: t('extra_traveler'),
+          selectedOption: t('selected_option'),
           sectionSpecial: t('special_requests'),
           firstName: t('first_name'),
           lastName: t('last_name'),
@@ -213,6 +218,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           errorRequired: tCommon('error_required'),
           errorEmail: tCommon('error_email'),
           errorServiceRequired: t('error_service_required'),
+          errorPricingRequired: t('error_pricing_required'),
         }}
       />
     </div>

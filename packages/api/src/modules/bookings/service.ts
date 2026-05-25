@@ -126,6 +126,9 @@ export async function createBookingService(
   const priceResult = await quote({
     airportServiceId: data.airportServiceId,
     passengers: data.passengers.length,
+    passengerTypes: data.passengers.map((passenger) => passenger.type),
+    direction: data.direction === 'transit' ? undefined : data.direction,
+    pricingRuleId: data.pricingRuleId,
     currency: 'EUR',
   });
 

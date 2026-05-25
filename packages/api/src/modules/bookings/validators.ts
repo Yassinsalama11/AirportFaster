@@ -56,6 +56,7 @@ export const FlightSchema = z.object({
 
 export const CreateBookingBodySchema = z.object({
   airportServiceId: z.string().uuid(),
+  pricingRuleId: z.string().uuid().optional(),
   serviceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'serviceDate must be YYYY-MM-DD'),
   direction: z.enum(['arrival', 'departure', 'transit']).default('departure'),
   passengers: z.array(PassengerSchema).min(1).max(20),

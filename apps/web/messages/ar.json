@@ -386,6 +386,11 @@
     "section_contact": "بيانات التواصل",
     "section_flight": "تفاصيل الرحلة",
     "section_flight_help": "ساعدنا على ربط حجزك برحلتك.",
+    "section_experience": "اختر تجربة الخدمة",
+    "section_experience_help": "اختر فئة الخدمة المناسبة للمساعدة التي تحتاجها.",
+    "included_travelers": "المسافرون المشمولون",
+    "extra_traveler": "مسافر إضافي",
+    "selected_option": "تم الاختيار",
     "passenger_type": "نوع المسافر",
     "adult": "بالغ",
     "child": "طفل",
@@ -404,7 +409,8 @@
     "page_payment_title": "أكمل الدفع",
     "page_payment_sub": "دفع آمن عبر Stripe.",
     "edit_details": "تعديل البيانات",
-    "error_service_required": "يرجى اختيار خدمة قبل المتابعة."
+    "error_service_required": "يرجى اختيار خدمة قبل المتابعة.",
+    "error_pricing_required": "يرجى اختيار فئة الخدمة قبل المتابعة."
   },
   "services_list": {
     "meta_title": "خدمات المطار — المسار السريع، الاستقبال، الصالة | AirportFaster",

@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const PricingModeSchema = z.enum(['fixed', 'cost_plus_markup']);
+export const PricingModelSchema = z.enum(['flat_per_type', 'tiered', 'group', 'duration_based']);
+export const PricingDirectionSchema = z.enum(['arrival', 'departure', 'both']);
 export const MarkupTypeSchema = z.enum(['percentage', 'fixed_amount']);
 export const PricingRuleStatusSchema = z.enum(['active', 'inactive']);
 export const DiscountTypeSchema = z.enum(['percentage', 'fixed']);
@@ -10,8 +12,16 @@ export const PricingRuleBaseSchema = z.object({
   airportServiceId: z.string().uuid(),
   supplierId: z.string().uuid().optional().nullable(),
   mode: PricingModeSchema,
+  direction: PricingDirectionSchema.default('both'),
+  pricingModel: PricingModelSchema.default('flat_per_type'),
   basePriceMinor: z.number().int().min(0).optional().nullable(),
+  firstPassengerMinor: z.number().int().min(0).optional().nullable(),
+  extraPassengerMinor: z.number().int().min(0).optional().nullable(),
+  groupSizeIncluded: z.number().int().min(1).optional().nullable(),
+  durationHours: z.number().int().min(1).optional().nullable(),
   supplierCostMinor: z.number().int().min(0).optional().nullable(),
+  supplierCostFirstMinor: z.number().int().min(0).optional().nullable(),
+  supplierCostExtraMinor: z.number().int().min(0).optional().nullable(),
   markupType: MarkupTypeSchema.optional().nullable(),
   markupValue: z.number().optional().nullable(),
   currency: z.string().length(3).toUpperCase(),
@@ -38,7 +48,9 @@ export const UpdatePricingRuleSchema = PricingRuleBaseSchema.partial();
 
 export const QuoteRequestSchema = z.object({
   airportServiceId: z.string().uuid(),
+  pricingRuleId: z.string().uuid().optional(),
   passengers: z.coerce.number().int().min(1).max(20).default(1),
+  direction: z.enum(['arrival', 'departure']).optional(),
   currency: z.string().length(3).toUpperCase().default('EUR'),
   promoCode: z.string().optional(),
   supplierId: z.string().uuid().optional(),

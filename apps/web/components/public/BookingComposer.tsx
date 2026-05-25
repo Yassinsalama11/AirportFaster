@@ -100,8 +100,6 @@ interface ComposerLabels {
   airportPlaceholder: string;
   serviceLabel: string;
   servicePlaceholder: string;
-  serviceBrowseAll?: string;
-  serviceBrowseAllHint?: string;
   dateLabel: string;
   travelersLabel: string;
   adults: string;
@@ -327,24 +325,6 @@ export function BookingComposer({ labels }: { labels: ComposerLabels }) {
           </button>
           {serviceOpen && availableServices.length > 0 && (
             <div className="absolute z-50 start-0 end-0 top-[calc(100%+0.5rem)] bg-surface border border-line shadow-popover rounded-2xl p-2">
-              {/* "Browse all" option — lets the user proceed to the plan page without picking */}
-              <button
-                type="button"
-                onClick={() => { setSelectedServiceId(''); setServiceOpen(false); }}
-                className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-surface-2 transition-colors text-start border-b border-line mb-1 pb-2"
-              >
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-gold/15 text-brand-gold-dark">
-                  <Sparkles className="w-4 h-4" />
-                </span>
-                <div className="min-w-0">
-                  <span className="block text-sm font-medium text-ink">
-                    {labels.serviceBrowseAll ?? 'Browse all plans'}
-                  </span>
-                  <span className="block text-[11px] text-ink-3">
-                    {labels.serviceBrowseAllHint ?? 'Compare options on the next page'}
-                  </span>
-                </div>
-              </button>
               {availableServices.map((s) => (
                 <button
                   key={s.id}
