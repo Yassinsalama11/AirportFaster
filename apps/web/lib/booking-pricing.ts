@@ -10,6 +10,7 @@ export interface PassengerCounts {
 
 export interface BookingPricingRule {
   id?: string;
+  supplierId?: string | null;
   displayName?: string | null;
   mode?: 'fixed' | 'cost_plus_markup' | null;
   basePriceMinor: number | null;
@@ -25,6 +26,7 @@ export interface BookingPricingRule {
   supplierCostExtraMinor?: number | null;
   markupType?: 'percentage' | 'fixed_amount' | null;
   markupValue?: number | string | null;
+  supplierCommissionPercent?: number | string | null;
   priority?: number | null;
   passengerPricing?: Record<string, number> | null;
 }
@@ -47,10 +49,13 @@ export function calculatePriceMinor(
 ): number {
   if (!rule) return 0;
   if (rule.mode === 'cost_plus_markup') {
-    return applyMarkup(calculateModelPriceMinor(rule, passengers, 'supplier'), rule);
+    const supplierCost = calculateModelPriceMinor(rule, passengers, 'supplier');
+    return applySupplierCommission(applyMarkup(supplierCost, rule), supplierCost, rule);
   }
 
-  return calculateModelPriceMinor(rule, passengers, 'customer');
+  const customerPrice = calculateModelPriceMinor(rule, passengers, 'customer');
+  const supplierCost = calculateModelPriceMinor(rule, passengers, 'supplier');
+  return applySupplierCommission(customerPrice, supplierCost, rule);
 }
 
 function applyMarkup(costMinor: number, rule: BookingPricingRule): number {
@@ -62,6 +67,19 @@ function applyMarkup(costMinor: number, rule: BookingPricingRule): number {
     return Math.round(costMinor + markupValue);
   }
   return costMinor;
+}
+
+function applySupplierCommission(
+  customerPriceMinor: number,
+  supplierCostMinor: number,
+  rule: BookingPricingRule,
+): number {
+  const commissionPercent = Number(rule.supplierCommissionPercent ?? 0);
+  if (!rule.supplierId || !Number.isFinite(commissionPercent) || commissionPercent <= 0) {
+    return customerPriceMinor;
+  }
+  const commissionBaseMinor = supplierCostMinor > 0 ? supplierCostMinor : customerPriceMinor;
+  return customerPriceMinor + Math.round((commissionBaseMinor * commissionPercent) / 100);
 }
 
 function calculateModelPriceMinor(
@@ -133,6 +151,8 @@ export function getApplicablePricingRules(
     : rules;
 
   return [...applicableRules].sort((a, b) => {
+    const supplierDiff = (b.supplierId ? 1 : 0) - (a.supplierId ? 1 : 0);
+    if (supplierDiff !== 0) return supplierDiff;
     const priorityDiff = (b.priority ?? 0) - (a.priority ?? 0);
     if (priorityDiff !== 0) return priorityDiff;
     return (a.basePriceMinor ?? 0) - (b.basePriceMinor ?? 0);

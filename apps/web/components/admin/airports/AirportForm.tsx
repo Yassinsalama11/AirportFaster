@@ -1,18 +1,29 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { PricingTab } from './PricingTab';
 
 import { COUNTRY_OPTIONS } from '@/lib/countries';
 
-const TIMEZONE_OPTIONS = [
+const FALLBACK_TIMEZONE_OPTIONS = [
   'UTC', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Amsterdam',
   'Asia/Dubai', 'Asia/Riyadh', 'Asia/Qatar', 'Asia/Kuwait',
   'Asia/Singapore', 'Asia/Bangkok', 'Asia/Kolkata', 'Asia/Karachi',
   'Australia/Sydney', 'America/New_York', 'America/Los_Angeles', 'America/Chicago',
   'Africa/Cairo', 'Asia/Istanbul', 'Asia/Amman', 'Asia/Muscat',
 ].sort();
+
+function getTimezoneOptions(currentTimezone: string): string[] {
+  const intlWithTimeZones = Intl as typeof Intl & {
+    supportedValuesOf?: (key: 'timeZone') => string[];
+  };
+  const supported =
+    typeof intlWithTimeZones.supportedValuesOf === 'function'
+      ? intlWithTimeZones.supportedValuesOf('timeZone')
+      : FALLBACK_TIMEZONE_OPTIONS;
+  return [...new Set(['UTC', currentTimezone, ...supported])].filter(Boolean).sort();
+}
 
 interface ServiceOption {
   id: string;
@@ -116,6 +127,7 @@ export function AirportForm({ airport, services, isNew }: Props) {
   const [country, setCountry] = useState(airport?.country ?? '');
   const [city, setCity] = useState(airport?.city ?? '');
   const [timezone, setTimezone] = useState(airport?.timezone ?? 'UTC');
+  const timezoneOptions = useMemo(() => getTimezoneOptions(timezone), [timezone]);
   const [status, setStatus] = useState(airport?.status ?? 'draft');
   const primaryImage =
     airport?.images?.find((image) => image.isPrimary) ?? airport?.images?.[0];
@@ -709,7 +721,8 @@ export function AirportForm({ airport, services, isNew }: Props) {
               onChange={(e) => setTimezone(e.target.value)}
               className="w-full px-4 py-2.5 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none"
             >
-              {TIMEZONE_OPTIONS.map((tz) => (
+              <option value="">Select timezone...</option>
+              {timezoneOptions.map((tz) => (
                 <option key={tz} value={tz}>{tz}</option>
               ))}
             </select>

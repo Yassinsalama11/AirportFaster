@@ -24,6 +24,7 @@ interface Airport {
   slug: string;
   city: string;
   country: string;
+  timezone: string;
   status: string;
   translations: AirportTranslation[];
   airportServices: AirportService[];
@@ -137,9 +138,48 @@ export default async function ReviewPage({ params, searchParams }: ReviewPagePro
         iataCode={airport.iataCode}
         city={airport.city}
         country={airport.country}
+        airportTimezone={airport.timezone}
         {...(selectedAirportServiceId !== undefined && { serviceId: selectedAirportServiceId })}
         {...(selectedService != null && { serviceName: getServiceName(selectedService.service, locale) })}
         {...(selectedService?.pricingRules != null && { pricingRules: selectedService.pricingRules })}
+        labels={{
+          serviceAirport: t('review_service_airport'),
+          airport: t('airport'),
+          location: t('review_location'),
+          service: t('service'),
+          category: t('review_category'),
+          passengers: t('passengers'),
+          passenger: t('section_passenger'),
+          contactDetails: t('section_contact'),
+          name: t('review_name'),
+          email: t('email'),
+          phone: t('phone'),
+          flightDetails: t('section_flight'),
+          direction: t('direction'),
+          arrival: t('arrival'),
+          departure: t('departure'),
+          flight: t('review_flight'),
+          dateTime: t('date_time'),
+          terminal: t('terminal'),
+          originDest: t('origin_dest'),
+          specialRequests: t('special_requests'),
+          priceSummary: t('review_price_summary'),
+          total: t('total'),
+          pricingTbc: t('review_pricing_tbc'),
+          backToDetails: t('review_back_to_details'),
+          confirmAndPay: t('review_confirm_and_pay'),
+          processing: t('review_processing'),
+          adult: t('adult'),
+          child: t('child'),
+          infant: t('infant'),
+          errorBookingFailed: t('error_booking_failed'),
+          errorUnexpected: t('error_unexpected'),
+          errorServiceRequired: t('error_service_required'),
+          errorDraftPreparing: t('error_draft_preparing'),
+          errorChooseDate: t('error_choose_date'),
+          errorChooseDirection: t('error_choose_direction'),
+          errorMissingId: t('error_missing_id'),
+        }}
       />
     </div>
   );

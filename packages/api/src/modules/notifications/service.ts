@@ -337,6 +337,42 @@ export async function sendSalesLeadNotification(data: SalesLeadNotificationData)
   }
 }
 
+export async function sendTeamInviteEmail(data: {
+  email: string;
+  name?: string | null;
+  resetUrl: string;
+}): Promise<void> {
+  const displayName = data.name?.trim() || data.email;
+  const escapedName = displayName.replace(/[&<>"']/g, (char) => {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+    return entities[char] ?? char;
+  });
+  const escapedUrl = data.resetUrl.replace(/"/g, '%22');
+  const template = {
+    subject: 'Set your AirportFaster admin password',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#111;">
+        <h1 style="font-size:22px;margin:0 0 12px;">Welcome to AirportFaster</h1>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${escapedName},</p>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 20px;">An admin account has been created for you. Set your password to access the AirportFaster dashboard.</p>
+        <p style="margin:24px 0;">
+          <a href="${escapedUrl}" style="display:inline-block;background:#d6b25e;color:#050505;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;">Set password</a>
+        </p>
+        <p style="font-size:13px;line-height:1.6;color:#666;margin:0;">This secure link expires soon. If you were not expecting this invitation, ignore this email.</p>
+      </div>
+    `,
+    text: `Hi ${displayName},\n\nAn admin account has been created for you. Set your password here:\n${data.resetUrl}\n\nThis secure link expires soon. If you were not expecting this invitation, ignore this email.`,
+  };
+
+  await sendEmail(data.email, template);
+}
+
 // ── Admin notification on paid booking ────────────────────────────────────────
 
 async function sendBookingPaidAdminEmail(data: BookingNotificationData): Promise<void> {

@@ -7,6 +7,14 @@
 
 ---
 
+### D-016 — Supplier commission is included in customer booking quotes
+**Date:** 2026-05-26 · **Status:** Accepted
+When a selected pricing rule is tied to a supplier, the supplier `commissionPercent` is added to the customer-facing quote and included in the booking price snapshot margin. **Rationale:** supplier commission is part of the sell price, not only an admin-side reporting value; the review page and backend quote must show the same total before Stripe payment. **Impact:** public pricing payloads include the supplier commission percent for supplier-backed rules, the client review calculation matches the backend pricing engine, and supplier commission is folded into `markupMinor`/`marginMinor` at booking time.
+
+### D-015 — Admin roles become configurable with invite-based password setup
+**Date:** 2026-05-26 · **Status:** Accepted
+Roles & Permissions now manages real admin users, role-to-permission assignments, and team invitations. Invited users receive a set-password email using the existing signed password-reset token flow. **Rationale:** admin access control must be operationally editable without developer intervention and without fake/demo user data. **Impact:** role changes and user invitations require `roles.write`, are audit logged, and use production email configuration.
+
 ### D-014 — Remediation work order: Arabic + RTL → Design system → Admin stub completion
 **Date:** 2026-05-16 · **Status:** Accepted (founder decision)
 Post-audit remediation runs in a fixed order: (1) i18n foundation + EN/AR translation (T-080..T-082), (2) design system + premium visual layer (T-083..T-085), (3) seven stubbed admin modules (T-086..T-092), with audit sweep (T-093) closing the block. **Rationale:** every UI change made before RTL is in place will need to be redone for RTL; every component built before the design system exists will become legacy; admin stubs depend on both. Doing them in this order minimises rework. **Impact:** see TASKS.md "Remediation Block — Post-Audit Gap Closure (2026-05-16)".

@@ -93,7 +93,38 @@ export async function publicRoutes(fastify: FastifyInstance): Promise<void> {
       });
     }
 
-    return reply.status(200).send({ success: true, data: { airport } });
+    const supplierIds = [
+      ...new Set(
+        airport.airportServices
+          .flatMap((airportService) => airportService.pricingRules)
+          .map((rule) => rule.supplierId)
+          .filter((supplierId): supplierId is string => typeof supplierId === 'string'),
+      ),
+    ];
+    const supplierCommissions = supplierIds.length
+      ? await prisma.supplier.findMany({
+          where: { id: { in: supplierIds } },
+          select: { id: true, commissionPercent: true },
+        })
+      : [];
+    const commissionBySupplierId = new Map(
+      supplierCommissions.map((supplier) => [
+        supplier.id,
+        supplier.commissionPercent != null ? Number(supplier.commissionPercent) : null,
+      ]),
+    );
+    const airportWithCommission = {
+      ...airport,
+      airportServices: airport.airportServices.map((airportService) => ({
+        ...airportService,
+        pricingRules: airportService.pricingRules.map((rule) => ({
+          ...rule,
+          supplierCommissionPercent: rule.supplierId ? commissionBySupplierId.get(rule.supplierId) ?? null : null,
+        })),
+      })),
+    };
+
+    return reply.status(200).send({ success: true, data: { airport: airportWithCommission } });
   });
 
   // GET /api/public/services

@@ -126,8 +126,14 @@ export async function getTopAirports(dateFrom: Date, dateTo: Date) {
   }
 
   return Array.from(airportMap.entries())
-    .map(([id, data]) => ({ id, ...data }))
-    .sort((a, b) => b.count - a.count)
+    .map(([id, data]) => ({
+      id,
+      iataCode: data.iataCode,
+      name: data.name,
+      bookingCount: data.count,
+      revenueMinorUnits: data.revenue,
+    }))
+    .sort((a, b) => b.bookingCount - a.bookingCount)
     .slice(0, 10);
 }
 

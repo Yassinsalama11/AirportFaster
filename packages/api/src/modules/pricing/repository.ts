@@ -104,6 +104,14 @@ export async function findActiveRulesForService(airportServiceId: string) {
   });
 }
 
+export async function findSupplierCommissionPercent(supplierId: string): Promise<number | null> {
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: supplierId },
+    select: { commissionPercent: true },
+  });
+  return supplier?.commissionPercent != null ? Number(supplier.commissionPercent) : null;
+}
+
 // ── Currency Rates ────────────────────────────────────────────────────────────
 
 export async function findCurrencyRate(baseCurrency: string, quoteCurrency: string) {

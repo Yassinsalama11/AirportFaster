@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   ClipboardList,
-  Activity,
   AlertTriangle,
   Undo2,
   Plane,
@@ -36,7 +35,6 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { labelKey: 'overview', href: '/admin', icon: LayoutDashboard, groupKey: 'main' },
   { labelKey: 'bookings', href: '/admin/bookings', icon: ClipboardList, groupKey: 'operations' },
-  { labelKey: 'operations', href: '/admin/operations', icon: Activity, groupKey: 'operations' },
   { labelKey: 'incidents', href: '/admin/incidents', icon: AlertTriangle, groupKey: 'operations' },
   { labelKey: 'refunds', href: '/admin/refunds', icon: Undo2, groupKey: 'operations' },
   { labelKey: 'airports', href: '/admin/airports', icon: Plane, groupKey: 'content' },

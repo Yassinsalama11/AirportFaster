@@ -2,6 +2,7 @@ import {
   findActiveRulesForService,
   findCurrencyRate,
   findPromoCodeByCode,
+  findSupplierCommissionPercent,
 } from './repository.js';
 
 export interface QuoteParams {
@@ -88,6 +89,7 @@ export interface QuoteResult {
   customerPriceMinor: number;
   supplierCostMinor: number;
   markupMinor: number;
+  supplierCommissionMinor: number;
   discountMinor: number;
   taxEstimateMinor: 0;
   marginMinor: number;
@@ -159,6 +161,17 @@ export async function quote(params: QuoteParams): Promise<QuoteResult | null> {
     markupMinor = customerPriceMinor - supplierCostMinor;
   }
 
+  let supplierCommissionMinor = 0;
+  if (rule.supplierId) {
+    const commissionPercent = await findSupplierCommissionPercent(rule.supplierId);
+    if (commissionPercent && commissionPercent > 0) {
+      const commissionBaseMinor = supplierCostMinor > 0 ? supplierCostMinor : customerPriceMinor;
+      supplierCommissionMinor = Math.round((commissionBaseMinor * commissionPercent) / 100);
+      customerPriceMinor += supplierCommissionMinor;
+      markupMinor += supplierCommissionMinor;
+    }
+  }
+
   // Step 6: Apply promo code discount
   let discountMinor = 0;
   let promoCodeApplied: string | undefined;
@@ -195,11 +208,20 @@ export async function quote(params: QuoteParams): Promise<QuoteResult | null> {
   const ruleCurrency = rule.currency;
   let displayCurrency = params.currency;
   let finalPrice = customerPriceMinor;
+  let supplierCostDisplayMinor = supplierCostMinor;
+  let markupDisplayMinor = markupMinor;
+  let supplierCommissionDisplayMinor = supplierCommissionMinor;
+  let discountDisplayMinor = discountMinor;
 
   if (params.currency !== ruleCurrency) {
     const rate = await findCurrencyRate(ruleCurrency, params.currency);
     if (rate) {
-      finalPrice = Math.round(customerPriceMinor * Number(rate.rate));
+      const rateValue = Number(rate.rate);
+      finalPrice = Math.round(customerPriceMinor * rateValue);
+      supplierCostDisplayMinor = Math.round(supplierCostMinor * rateValue);
+      markupDisplayMinor = Math.round(markupMinor * rateValue);
+      supplierCommissionDisplayMinor = Math.round(supplierCommissionMinor * rateValue);
+      discountDisplayMinor = Math.round(discountMinor * rateValue);
     } else {
       // No rate found — return in rule's native currency
       displayCurrency = ruleCurrency;
@@ -207,15 +229,16 @@ export async function quote(params: QuoteParams): Promise<QuoteResult | null> {
   }
 
   // Step 8: Return result
-  const marginMinor = finalPrice - Math.round(supplierCostMinor * (params.currency === ruleCurrency ? 1 : Number((await findCurrencyRate(ruleCurrency, displayCurrency))?.rate ?? 1)));
+  const marginMinor = Math.max(0, finalPrice - supplierCostDisplayMinor);
 
   return {
     customerPriceMinor: finalPrice,
-    supplierCostMinor,
-    markupMinor,
-    discountMinor,
+    supplierCostMinor: supplierCostDisplayMinor,
+    markupMinor: markupDisplayMinor,
+    supplierCommissionMinor: supplierCommissionDisplayMinor,
+    discountMinor: discountDisplayMinor,
     taxEstimateMinor: 0,
-    marginMinor: Math.max(0, finalPrice - supplierCostMinor),
+    marginMinor,
     currency: ruleCurrency,
     displayCurrency,
     appliedRuleId: rule.id,

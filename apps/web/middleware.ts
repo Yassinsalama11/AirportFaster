@@ -47,6 +47,8 @@ export default function middleware(request: NextRequest): NextResponse {
   const loginPath = `/${locale}/admin/login`;
   const dashboardPath = `/${locale}/admin`;
   const isLoginPage = pathWithoutLocale === '/admin/login' || pathWithoutLocale === '/admin/login/';
+  const isPasswordResetPage =
+    pathWithoutLocale === '/admin/password-reset' || pathWithoutLocale === '/admin/password-reset/';
   const isAdminPath = pathWithoutLocale.startsWith('/admin');
 
   // If user has a cookie and is on the login page, redirect to dashboard
@@ -55,7 +57,7 @@ export default function middleware(request: NextRequest): NextResponse {
   }
 
   // If user has no cookie and is accessing admin (non-login) route, redirect to login
-  if (isAdminPath && !isLoginPage && !sessionToken) {
+  if (isAdminPath && !isLoginPage && !isPasswordResetPage && !sessionToken) {
     const loginUrl = new URL(loginPath, request.url);
     loginUrl.searchParams.set('redirect', pathWithoutLocale);
     return NextResponse.redirect(loginUrl);

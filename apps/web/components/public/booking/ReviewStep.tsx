@@ -25,9 +25,50 @@ interface ReviewStepProps {
   iataCode: string;
   city: string;
   country: string;
+  airportTimezone: string;
   serviceId?: string;
   serviceName?: string;
   pricingRules?: BookingPricingRule[];
+  labels: ReviewStepLabels;
+}
+
+export interface ReviewStepLabels {
+  serviceAirport: string;
+  airport: string;
+  location: string;
+  service: string;
+  category: string;
+  passengers: string;
+  passenger: string;
+  contactDetails: string;
+  name: string;
+  email: string;
+  phone: string;
+  flightDetails: string;
+  direction: string;
+  arrival: string;
+  departure: string;
+  flight: string;
+  dateTime: string;
+  terminal: string;
+  originDest: string;
+  specialRequests: string;
+  priceSummary: string;
+  total: string;
+  pricingTbc: string;
+  backToDetails: string;
+  confirmAndPay: string;
+  processing: string;
+  adult: string;
+  child: string;
+  infant: string;
+  errorBookingFailed: string;
+  errorUnexpected: string;
+  errorServiceRequired: string;
+  errorDraftPreparing: string;
+  errorChooseDate: string;
+  errorChooseDirection: string;
+  errorMissingId: string;
 }
 
 interface CreateBookingResponse {
@@ -50,15 +91,16 @@ interface DraftBookingSession {
   serviceId: string;
 }
 
-function formatDateTime(dt: string): string {
+function formatDateTime(dt: string, locale: string, timeZone: string): string {
   if (!dt) return '';
   try {
-    return new Date(dt).toLocaleString('en-GB', {
+    return new Date(dt).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-GB', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone,
     });
   } catch {
     return dt;
@@ -94,11 +136,11 @@ function safeSessionRemove(key: string): void {
   }
 }
 
-function getApiErrorMessage(data: CreateBookingResponse): string {
+function getApiErrorMessage(data: CreateBookingResponse, fallback: string): string {
   if (data.message) return data.message;
   if (typeof data.error === 'string') return data.error;
   if (data.error?.message) return data.error.message;
-  return 'Booking failed. Please try again.';
+  return fallback;
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -124,9 +166,11 @@ export function ReviewStep({
   iataCode,
   city,
   country,
+  airportTimezone,
   serviceId,
   serviceName,
   pricingRules,
+  labels,
 }: ReviewStepProps) {
   const router = useRouter();
   const params = useParams();
@@ -181,11 +225,11 @@ export function ReviewStep({
 
       try {
         if (!currentForm.serviceDate) {
-          throw new Error('Please go back and choose a service date.');
+          throw new Error(labels.errorChooseDate);
         }
 
         if (!currentForm.flight.direction) {
-          throw new Error('Please go back and select arrival or departure.');
+          throw new Error(labels.errorChooseDirection);
         }
 
         const flightDirection = currentForm.flight.direction;
@@ -244,12 +288,12 @@ export function ReviewStep({
 
         const data = (await res.json()) as CreateBookingResponse;
         if (!res.ok || !data.success) {
-          throw new Error(getApiErrorMessage(data));
+          throw new Error(getApiErrorMessage(data, labels.errorBookingFailed));
         }
 
         const bookingId = data.data?.bookingId;
         if (!bookingId) {
-          throw new Error('Booking created but ID missing. Please contact support.');
+          throw new Error(labels.errorMissingId);
         }
 
         const draft: DraftBookingSession = {
@@ -266,7 +310,7 @@ export function ReviewStep({
         if (!cancelled) setDraftBooking(draft);
       } catch (err: unknown) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+          setError(err instanceof Error ? err.message : labels.errorUnexpected);
         }
       } finally {
         if (!cancelled) setDraftLoading(false);
@@ -302,10 +346,10 @@ export function ReviewStep({
 
     try {
       if (!serviceId) {
-        throw new Error('Please choose a service before confirming your booking.');
+        throw new Error(labels.errorServiceRequired);
       }
       if (!draftBooking) {
-        throw new Error('Your draft booking is still being prepared. Please try again.');
+        throw new Error(labels.errorDraftPreparing);
       }
       safeSessionRemove(BOOKING_FORM_KEY);
       safeSessionRemove(BOOKING_SERVICE_KEY);
@@ -315,35 +359,35 @@ export function ReviewStep({
         `/${locale}/book/${draftBooking.bookingId}/payment?currency=${encodeURIComponent(draftBooking.currency)}&ref=${encodeURIComponent(draftBooking.bookingReference)}`,
       );
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : labels.errorUnexpected);
       setLoading(false);
     }
   }
 
   const passengerTypeLabel: Record<string, string> = {
-    adult: 'Adult',
-    child: 'Child',
-    infant: 'Infant',
+    adult: labels.adult,
+    child: labels.child,
+    infant: labels.infant,
   };
 
   return (
     <div className="space-y-6">
       {/* Service + Airport */}
       <section className="bg-surface border border-line rounded-2xl p-6">
-        <SectionTitle>Service &amp; Airport</SectionTitle>
-        <Row label="Airport" value={`${airportName} (${iataCode})`} />
-        <Row label="Location" value={`${city}, ${country}`} />
-        {serviceName && <Row label="Service" value={serviceName} />}
-        {baseRule && <Row label="Category" value={pricingOptionName} />}
+        <SectionTitle>{labels.serviceAirport}</SectionTitle>
+        <Row label={labels.airport} value={`${airportName} (${iataCode})`} />
+        <Row label={labels.location} value={`${city}, ${country}`} />
+        {serviceName && <Row label={labels.service} value={serviceName} />}
+        {baseRule && <Row label={labels.category} value={pricingOptionName} />}
       </section>
 
       {/* Passengers */}
       <section className="bg-surface border border-line rounded-2xl p-6">
-        <SectionTitle>Passengers ({form.passengerCount})</SectionTitle>
+        <SectionTitle>{labels.passengers} ({form.passengerCount})</SectionTitle>
         {form.passengers.map((p, i) => (
           <Row
             key={i}
-            label={`Passenger ${i + 1}`}
+            label={`${labels.passenger} ${i + 1}`}
             value={
               <span>
                 {p.firstName} {p.lastName}{' '}
@@ -358,37 +402,42 @@ export function ReviewStep({
 
       {/* Contact */}
       <section className="bg-surface border border-line rounded-2xl p-6">
-        <SectionTitle>Contact Details</SectionTitle>
-        <Row label="Name" value={`${form.contact.firstName} ${form.contact.lastName}`} />
-        <Row label="Email" value={form.contact.email} />
-        <Row label="Phone" value={form.contact.phone} />
+        <SectionTitle>{labels.contactDetails}</SectionTitle>
+        <Row label={labels.name} value={`${form.contact.firstName} ${form.contact.lastName}`} />
+        <Row label={labels.email} value={form.contact.email} />
+        <Row label={labels.phone} value={form.contact.phone} />
       </section>
 
       {/* Flight info */}
       {form.flight.direction && (
         <section className="bg-surface border border-line rounded-2xl p-6">
-          <SectionTitle>Flight Details</SectionTitle>
+          <SectionTitle>{labels.flightDetails}</SectionTitle>
           {form.flight.direction && (
-            <Row label="Direction" value={form.flight.direction.charAt(0).toUpperCase() + form.flight.direction.slice(1)} />
+            <Row
+              label={labels.direction}
+              value={form.flight.direction === 'arrival' ? labels.arrival : labels.departure}
+            />
           )}
-          {form.flight.flightNumber && <Row label="Flight" value={form.flight.flightNumber} />}
-          {form.flight.dateTime && <Row label="Date &amp; Time" value={formatDateTime(form.flight.dateTime)} />}
-          {form.flight.terminal && <Row label="Terminal" value={form.flight.terminal} />}
-          {form.flight.originDestIata && <Row label="Origin/Dest" value={form.flight.originDestIata} />}
+          {form.flight.flightNumber && <Row label={labels.flight} value={form.flight.flightNumber} />}
+          {form.flight.dateTime && (
+            <Row label={labels.dateTime} value={formatDateTime(form.flight.dateTime, locale, airportTimezone)} />
+          )}
+          {form.flight.terminal && <Row label={labels.terminal} value={form.flight.terminal} />}
+          {form.flight.originDestIata && <Row label={labels.originDest} value={form.flight.originDestIata} />}
         </section>
       )}
 
       {/* Special requests */}
       {form.specialRequests && (
         <section className="bg-surface border border-line rounded-2xl p-6">
-          <SectionTitle>Special Requests</SectionTitle>
-          <p className="text-sm text-ink-2">{form.specialRequests}</p>
-        </section>
+        <SectionTitle>{labels.specialRequests}</SectionTitle>
+        <p className="text-sm text-ink-2">{form.specialRequests}</p>
+      </section>
       )}
 
       {/* Price breakdown */}
       <section className="bg-surface border border-line rounded-2xl p-6">
-        <SectionTitle>Price Summary</SectionTitle>
+        <SectionTitle>{labels.priceSummary}</SectionTitle>
         {subtotalMinor > 0 ? (
           <div className="space-y-0">
             <Row
@@ -396,12 +445,12 @@ export function ReviewStep({
               value={formatCurrency(subtotalMinor, currency)}
             />
             <div className="flex items-center justify-between pt-3 mt-1">
-              <span className="text-base font-bold text-ink">Total</span>
+              <span className="text-base font-bold text-ink">{labels.total}</span>
               <span className="text-xl font-bold text-brand-gold">{formatCurrency(totalMinor, currency)}</span>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-ink-3">Pricing will be confirmed after booking.</p>
+          <p className="text-sm text-ink-3">{labels.pricingTbc}</p>
         )}
       </section>
 
@@ -421,7 +470,7 @@ export function ReviewStep({
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back to Details
+          {labels.backToDetails}
         </Link>
 
         <button
@@ -436,11 +485,11 @@ export function ReviewStep({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Processing…
+              {labels.processing}
             </>
           ) : (
             <>
-              Confirm &amp; Pay
+              {labels.confirmAndPay}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
