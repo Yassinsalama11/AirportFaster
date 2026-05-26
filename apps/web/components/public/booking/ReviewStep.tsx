@@ -89,6 +89,8 @@ interface DraftBookingSession {
   bookingReference: string;
   currency: string;
   serviceId: string;
+  fingerprint: string;
+  totalMinorUnits: number;
 }
 
 function formatDateTime(dt: string, locale: string, timeZone: string): string {
@@ -134,6 +136,35 @@ function safeSessionRemove(key: string): void {
   } catch {
     // Ignore unavailable sessionStorage.
   }
+}
+
+function buildDraftFingerprint(form: BookingFormData, serviceId: string): string {
+  return JSON.stringify({
+    serviceId,
+    pricingRuleId: form.selectedPricingRuleId ?? null,
+    serviceDate: form.serviceDate,
+    passengers: form.passengers.map((passenger) => ({
+      firstName: passenger.firstName.trim(),
+      lastName: passenger.lastName.trim(),
+      type: passenger.type,
+      passportNumber: passenger.passportNumber.trim(),
+      nationality: passenger.nationality.trim().toUpperCase(),
+    })),
+    contact: {
+      email: form.contact.email.trim().toLowerCase(),
+      phone: form.contact.phone.trim(),
+      firstName: form.contact.firstName.trim(),
+      lastName: form.contact.lastName.trim(),
+    },
+    flight: {
+      direction: form.flight.direction,
+      flightNumber: form.flight.flightNumber.trim().toUpperCase(),
+      dateTime: form.flight.dateTime.trim(),
+      terminal: form.flight.terminal.trim(),
+      originDestIata: form.flight.originDestIata.trim().toUpperCase(),
+    },
+    specialRequests: form.specialRequests.trim(),
+  });
 }
 
 function getApiErrorMessage(data: CreateBookingResponse, fallback: string): string {
@@ -203,6 +234,7 @@ export function ReviewStep({
 
     const currentForm = form;
     const currentServiceId = serviceId;
+    const currentFingerprint = buildDraftFingerprint(currentForm, currentServiceId);
     let cancelled = false;
 
     async function ensureDraftBooking() {
@@ -213,11 +245,17 @@ export function ReviewStep({
       if (storedDraft) {
         try {
           const parsed = JSON.parse(storedDraft) as DraftBookingSession;
-          if (parsed.bookingId && parsed.serviceId === currentServiceId) {
+          if (
+            parsed.bookingId &&
+            parsed.serviceId === currentServiceId &&
+            parsed.fingerprint === currentFingerprint &&
+            typeof parsed.totalMinorUnits === 'number'
+          ) {
             if (!cancelled) setDraftBooking(parsed);
             if (!cancelled) setDraftLoading(false);
             return;
           }
+          safeSessionRemove(DRAFT_BOOKING_KEY);
         } catch {
           safeSessionRemove(DRAFT_BOOKING_KEY);
         }
@@ -301,6 +339,8 @@ export function ReviewStep({
           bookingReference: data.data?.bookingReference ?? 'PENDING',
           currency: data.data?.currency ?? 'EUR',
           serviceId: currentServiceId,
+          fingerprint: currentFingerprint,
+          totalMinorUnits: data.data?.totalMinorUnits ?? 0,
         };
 
         if (data.data?.manageToken) {
@@ -333,11 +373,11 @@ export function ReviewStep({
   }
 
   const baseRule = selectPricingRule(pricingRules, form.flight.direction, form.selectedPricingRuleId);
-  const currency = baseRule?.currency ?? 'EUR';
+  const currency = draftBooking?.currency ?? baseRule?.currency ?? 'EUR';
   const pricingOptionName = getPricingRuleDisplayName(baseRule, serviceName);
   const passengerCounts = getPassengerCounts(form.passengers);
   const subtotalMinor = calculatePriceMinor(baseRule, passengerCounts);
-  const totalMinor = subtotalMinor;
+  const totalMinor = draftBooking?.totalMinorUnits ?? subtotalMinor;
 
   async function handleConfirm() {
     if (!form) return;
