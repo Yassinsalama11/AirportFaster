@@ -393,7 +393,12 @@ export function PassengersStep({
   const liveCurrency = liveRule?.currency ?? summary.pricingCurrency ?? 'EUR';
   const passengerCounts = getPassengerCounts(form.passengers);
   const selectedRuleName = getPricingRuleDisplayName(liveRule, summary.serviceName);
-  const specialSectionNumber = form.passengers.length + (pricingOptions.length > 0 ? 5 : 4);
+  const hasExperienceStep = pricingOptions.length > 0;
+  const expOffset = hasExperienceStep ? 1 : 0;
+  const passengersSectionNumber = 1 + expOffset;
+  const contactSectionNumber = form.passengers.length + 2 + expOffset;
+  const flightSectionNumber = form.passengers.length + 3 + expOffset;
+  const specialSectionNumber = form.passengers.length + 4 + expOffset;
 
   const trustItems = [
     { icon: Shield, label: labels.trustSecure },
@@ -405,11 +410,80 @@ export function PassengersStep({
     <div className="grid lg:grid-cols-[1fr_22rem] gap-8 lg:gap-10">
       {/* Form column */}
       <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        {/* Service experience — placed first so customers pick their tier before entering details */}
+        {hasExperienceStep && (
+          <Card className="p-6">
+            <h2 className="text-body-lg font-semibold text-ink mb-1 flex items-center gap-3">
+              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-gold/15 text-brand-gold-dark text-xs font-bold">
+                1
+              </span>
+              {labels.sectionExperience}
+            </h2>
+            <p className="text-sm text-ink-3 mb-5 ms-10">{labels.sectionExperienceHelp}</p>
+
+            <div className="grid gap-3" data-field="selectedPricingRuleId">
+              {pricingOptions.map((rule) => {
+                const isSelected = (form.selectedPricingRuleId || liveRule?.id) === rule.id;
+                const totalMinor = calculatePriceMinor(rule, passengerCounts);
+                return (
+                  <button
+                    key={rule.id ?? `${rule.pricingModel}-${rule.priority ?? 0}`}
+                    type="button"
+                    onClick={() => rule.id && selectPricingOption(rule.id)}
+                    className={cn(
+                      'w-full rounded-2xl border p-4 text-start transition-all',
+                      isSelected
+                        ? 'border-brand-gold bg-brand-gold/10 shadow-card'
+                        : 'border-line bg-surface hover:border-brand-gold/40 hover:bg-surface-2',
+                    )}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-ink">
+                          {getPricingRuleDisplayName(rule, summary.serviceName)}
+                        </p>
+                        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-3">
+                          {getPricingRuleDescription(rule)}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-3">
+                          {rule.groupSizeIncluded != null && (
+                            <span className="rounded-full bg-surface-2 px-3 py-1">
+                              {labels.includedTravelers}: {rule.groupSizeIncluded}
+                            </span>
+                          )}
+                          {rule.extraPassengerMinor != null && rule.extraPassengerMinor > 0 && (
+                            <span className="rounded-full bg-surface-2 px-3 py-1">
+                              {labels.extraTraveler}: {formatCurrency(rule.extraPassengerMinor, rule.currency)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="sm:text-end">
+                        <p className="text-xl font-bold text-brand-gold-dark" dir="ltr">
+                          {formatCurrency(totalMinor, rule.currency)}
+                        </p>
+                        {isSelected && (
+                          <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-brand-gold-dark">
+                            {labels.selectedOption}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {getErr(errors, 'selectedPricingRuleId') && (
+              <p className="mt-2 text-xs text-red-600">{labels.errorPricingRequired}</p>
+            )}
+          </Card>
+        )}
+
         {/* Passengers count */}
         <Card className="p-6">
           <h2 className="text-body-lg font-semibold text-ink mb-5 flex items-center gap-3">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-gold/15 text-brand-gold-dark text-xs font-bold">
-              1
+              {passengersSectionNumber}
             </span>
             {labels.sectionPassengers}
           </h2>
@@ -443,7 +517,7 @@ export function PassengersStep({
           <Card key={index} className="p-6">
             <h2 className="text-body-lg font-semibold text-ink mb-5 flex items-center gap-3">
               <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-gold/15 text-brand-gold-dark text-xs font-bold">
-                {index + 2}
+                {index + 2 + expOffset}
               </span>
               {labels.sectionPassenger} {index + 1}
               {index === 0 && (
@@ -537,7 +611,7 @@ export function PassengersStep({
         <Card className="p-6">
           <h2 className="text-body-lg font-semibold text-ink mb-5 flex items-center gap-3">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-gold/15 text-brand-gold-dark text-xs font-bold">
-              {form.passengers.length + 2}
+              {contactSectionNumber}
             </span>
             {labels.sectionContact}
           </h2>
@@ -611,7 +685,7 @@ export function PassengersStep({
         <Card className="p-6">
           <h2 className="text-body-lg font-semibold text-ink mb-1 flex items-center gap-3">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-gold/15 text-brand-gold-dark text-xs font-bold">
-              {form.passengers.length + 3}
+              {flightSectionNumber}
             </span>
             {labels.sectionFlight}
           </h2>
@@ -684,75 +758,6 @@ export function PassengersStep({
 
           </div>
         </Card>
-
-        {/* Service experience */}
-        {pricingOptions.length > 0 && (
-          <Card className="p-6">
-            <h2 className="text-body-lg font-semibold text-ink mb-1 flex items-center gap-3">
-              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-gold/15 text-brand-gold-dark text-xs font-bold">
-                {form.passengers.length + 4}
-              </span>
-              {labels.sectionExperience}
-            </h2>
-            <p className="text-sm text-ink-3 mb-5 ms-10">{labels.sectionExperienceHelp}</p>
-
-            <div className="grid gap-3" data-field="selectedPricingRuleId">
-              {pricingOptions.map((rule) => {
-                const isSelected = (form.selectedPricingRuleId || liveRule?.id) === rule.id;
-                const totalMinor = calculatePriceMinor(rule, passengerCounts);
-                return (
-                  <button
-                    key={rule.id ?? `${rule.pricingModel}-${rule.priority ?? 0}`}
-                    type="button"
-                    onClick={() => rule.id && selectPricingOption(rule.id)}
-                    className={cn(
-                      'w-full rounded-2xl border p-4 text-start transition-all',
-                      isSelected
-                        ? 'border-brand-gold bg-brand-gold/10 shadow-card'
-                        : 'border-line bg-surface hover:border-brand-gold/40 hover:bg-surface-2',
-                    )}
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="font-semibold text-ink">
-                          {getPricingRuleDisplayName(rule, summary.serviceName)}
-                        </p>
-                        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-3">
-                          {getPricingRuleDescription(rule)}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-3">
-                          {rule.groupSizeIncluded != null && (
-                            <span className="rounded-full bg-surface-2 px-3 py-1">
-                              {labels.includedTravelers}: {rule.groupSizeIncluded}
-                            </span>
-                          )}
-                          {rule.extraPassengerMinor != null && rule.extraPassengerMinor > 0 && (
-                            <span className="rounded-full bg-surface-2 px-3 py-1">
-                              {labels.extraTraveler}: {formatCurrency(rule.extraPassengerMinor, rule.currency)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="sm:text-end">
-                        <p className="text-xl font-bold text-brand-gold-dark" dir="ltr">
-                          {formatCurrency(totalMinor, rule.currency)}
-                        </p>
-                        {isSelected && (
-                          <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-brand-gold-dark">
-                            {labels.selectedOption}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {getErr(errors, 'selectedPricingRuleId') && (
-              <p className="mt-2 text-xs text-red-600">{labels.errorPricingRequired}</p>
-            )}
-          </Card>
-        )}
 
         {/* Special requests */}
         <Card className="p-6">

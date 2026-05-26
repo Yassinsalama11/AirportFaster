@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { COUNTRY_OPTIONS } from '@/lib/countries';
 
 interface SupplierData {
   id?: string;
@@ -35,29 +36,6 @@ const STATUS_OPTIONS = [
   { value: 'verified', label: 'Active / Verified' },
   { value: 'suspended', label: 'Suspended / Inactive' },
 ];
-
-const COUNTRY_OPTIONS = [
-  { code: 'AE', name: 'United Arab Emirates' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'BH', name: 'Bahrain' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'EG', name: 'Egypt' },
-  { code: 'FR', name: 'France' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'IN', name: 'India' },
-  { code: 'JO', name: 'Jordan' },
-  { code: 'KW', name: 'Kuwait' },
-  { code: 'MY', name: 'Malaysia' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'OM', name: 'Oman' },
-  { code: 'PK', name: 'Pakistan' },
-  { code: 'QA', name: 'Qatar' },
-  { code: 'SA', name: 'Saudi Arabia' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'TH', name: 'Thailand' },
-  { code: 'TR', name: 'Turkey' },
-  { code: 'US', name: 'United States' },
-].sort((a, b) => a.name.localeCompare(b.name));
 
 export function SupplierForm({ supplier, isNew }: Props) {
   const router = useRouter();

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
+// (Admin requests now go through the Next.js /api/admin proxy that forwards the session cookie)
 
 interface Props {
   bookingId: string;
@@ -24,7 +24,7 @@ export function AddNoteForm({ bookingId }: Props) {
     setError(null);
     setSuccess(false);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/bookings/${bookingId}/notes`, {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

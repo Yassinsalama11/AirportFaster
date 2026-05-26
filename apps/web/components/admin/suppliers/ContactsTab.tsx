@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
+// (Admin requests now go through the Next.js /api/admin proxy that forwards the session cookie)
 
 interface Contact {
   id: string;
@@ -45,7 +45,7 @@ export function ContactsTab({ supplierId, contacts }: Props) {
     body['isPrimary'] = isPrimary;
 
     try {
-      const res = await fetch(`${API_BASE}/api/admin/suppliers/${supplierId}/contacts`, {
+      const res = await fetch(`/api/admin/suppliers/${supplierId}/contacts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -74,7 +74,7 @@ export function ContactsTab({ supplierId, contacts }: Props) {
   async function handleRemove(contactId: string) {
     if (!confirm('Remove this contact?')) return;
     try {
-      await fetch(`${API_BASE}/api/admin/suppliers/${supplierId}/contacts/${contactId}`, {
+      await fetch(`/api/admin/suppliers/${supplierId}/contacts/${contactId}`, {
         method: 'DELETE',
         credentials: 'include',
       });

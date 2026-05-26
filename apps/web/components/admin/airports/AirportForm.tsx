@@ -4,28 +4,7 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { PricingTab } from './PricingTab';
 
-const COUNTRY_OPTIONS = [
-  { code: 'AE', name: 'United Arab Emirates' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'US', name: 'United States' },
-  { code: 'SA', name: 'Saudi Arabia' },
-  { code: 'QA', name: 'Qatar' },
-  { code: 'KW', name: 'Kuwait' },
-  { code: 'BH', name: 'Bahrain' },
-  { code: 'OM', name: 'Oman' },
-  { code: 'EG', name: 'Egypt' },
-  { code: 'JO', name: 'Jordan' },
-  { code: 'TR', name: 'Turkey' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'TH', name: 'Thailand' },
-  { code: 'IN', name: 'India' },
-  { code: 'PK', name: 'Pakistan' },
-  { code: 'MY', name: 'Malaysia' },
-  { code: 'AU', name: 'Australia' },
-].sort((a, b) => a.name.localeCompare(b.name));
+import { COUNTRY_OPTIONS } from '@/lib/countries';
 
 const TIMEZONE_OPTIONS = [
   'UTC', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Amsterdam',

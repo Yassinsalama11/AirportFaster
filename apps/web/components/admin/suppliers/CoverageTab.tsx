@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
+// (Admin requests now go through the Next.js /api/admin proxy that forwards the session cookie)
 
 interface AirportOption {
   id: string;
@@ -74,7 +74,7 @@ export function CoverageTab({ supplierId, coverages, availableAirports }: Props)
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/suppliers/${supplierId}/coverage`, {
+      const res = await fetch(`/api/admin/suppliers/${supplierId}/coverage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -103,7 +103,7 @@ export function CoverageTab({ supplierId, coverages, availableAirports }: Props)
     if (!confirm('Remove this coverage?')) return;
     try {
       await fetch(
-        `${API_BASE}/api/admin/suppliers/${supplierId}/coverage/${coverageId}`,
+        `/api/admin/suppliers/${supplierId}/coverage/${coverageId}`,
         { method: 'DELETE', credentials: 'include' },
       );
       router.refresh();

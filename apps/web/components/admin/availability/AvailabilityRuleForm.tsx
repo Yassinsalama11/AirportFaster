@@ -16,7 +16,7 @@ interface Props {
   airportServices: AirportService[];
 }
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
+// (Admin requests now go through the Next.js /api/admin proxy that forwards the session cookie)
 
 const DAY_LABELS = [
   { value: 0, label: 'Sun' },
@@ -101,7 +101,7 @@ export function AvailabilityRuleForm({ airportId, airportServices }: Props) {
     };
 
     try {
-      const res = await fetch(`${API_BASE}/api/admin/availability/rules`, {
+      const res = await fetch(`/api/admin/availability/rules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
