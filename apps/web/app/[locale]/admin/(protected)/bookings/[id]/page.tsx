@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { notFound } from 'next/navigation';
 import { adminApiCall } from '@/lib/admin-api';
 import { BookingActionsPanel } from '@/components/admin/bookings/BookingActionsPanel';
@@ -72,6 +72,18 @@ interface Note {
   createdAt: string;
 }
 
+interface SupplierAssignment {
+  id: string;
+  status: string;
+  createdAt: string;
+  supplier: {
+    id: string;
+    name: string;
+    commissionPercent: number | string | null;
+    payoutCurrency: string | null;
+  };
+}
+
 interface Booking {
   id: string;
   reference: string;
@@ -91,6 +103,7 @@ interface Booking {
   priceSnapshot: PriceSnapshot | null;
   statusHistory: StatusHistory[];
   notes: Note[];
+  assignments: SupplierAssignment[];
 }
 
 interface Supplier {
@@ -355,6 +368,44 @@ export default async function BookingDetailPage({
               </div>
             </div>
           )}
+
+          {/* Commission & Payout */}
+          {(() => {
+            const assignment = booking.assignments?.[0];
+            if (!assignment) return null;
+            const commissionPct = Number(assignment.supplier.commissionPercent ?? 0);
+            const grossMinor = booking.totalMinor;
+            const commissionMinor = Math.round((grossMinor * commissionPct) / 100);
+            const payoutMinor = grossMinor - commissionMinor;
+            return (
+              <div className="bg-brand-navy border border-white/5 rounded-xl p-5">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Commission & Payout</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-400">
+                    <span>Supplier</span>
+                    <span className="text-brand-white">{assignment.supplier.name}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400">
+                    <span>Gross</span>
+                    <span className="text-brand-white">{formatAmount(grossMinor, booking.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400">
+                    <span>Platform Commission ({commissionPct.toFixed(1)}%)</span>
+                    <span className="text-brand-gold">{formatAmount(commissionMinor, booking.currency)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-brand-white pt-2 border-t border-white/5">
+                    <span>Supplier Payout</span>
+                    <span>{formatAmount(payoutMinor, booking.currency)}</span>
+                  </div>
+                  {assignment.supplier.payoutCurrency && assignment.supplier.payoutCurrency !== booking.currency && (
+                    <p className="text-xs text-gray-600">
+                      Supplier payout currency: {assignment.supplier.payoutCurrency} (FX conversion applies)
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Status Timeline */}
           <div className="bg-brand-navy border border-white/5 rounded-xl p-5">

@@ -682,22 +682,6 @@ export function PassengersStep({
               />
             </Field>
 
-            <Field
-              label={labels.originDest}
-              htmlFor="flight-iata"
-              optional
-              optionalLabel={labels.optional}
-            >
-              <Input
-                id="flight-iata"
-                type="text"
-                dir="ltr"
-                value={form.flight.originDestIata}
-                onChange={(e) => updateFlight('originDestIata', e.target.value.toUpperCase())}
-                placeholder="LHR"
-                maxLength={3}
-              />
-            </Field>
           </div>
         </Card>
 

@@ -1,9 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
+import { Link } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -12,9 +12,6 @@ import {
   AlertTriangle,
   Undo2,
   Plane,
-  Sparkles,
-  FileText,
-  Bot,
   Building2,
   Users,
   CreditCard,
@@ -43,9 +40,6 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: 'incidents', href: '/admin/incidents', icon: AlertTriangle, groupKey: 'operations' },
   { labelKey: 'refunds', href: '/admin/refunds', icon: Undo2, groupKey: 'operations' },
   { labelKey: 'airports', href: '/admin/airports', icon: Plane, groupKey: 'content' },
-  { labelKey: 'services', href: '/admin/services', icon: Sparkles, groupKey: 'content' },
-  { labelKey: 'cms', href: '/admin/cms', icon: FileText, groupKey: 'content' },
-  { labelKey: 'ai_engine', href: '/admin/ai-engine', icon: Bot, groupKey: 'content' },
   { labelKey: 'suppliers', href: '/admin/suppliers', icon: Building2, groupKey: 'business' },
   { labelKey: 'customers', href: '/admin/customers', icon: Users, groupKey: 'business' },
   { labelKey: 'finance', href: '/admin/finance', icon: CreditCard, groupKey: 'business' },

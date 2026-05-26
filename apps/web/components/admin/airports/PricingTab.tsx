@@ -420,19 +420,6 @@ export function PricingTab({ airportId: _airportId, airportServices: airportServ
               />
             </div>
 
-            {/* Mode */}
-            <div>
-              <label className={labelClass}>Pricing Mode <span className="text-red-400">*</span></label>
-              <div className="flex gap-4 mt-2">
-                {(['fixed', 'cost_plus_markup'] as const).map((m) => (
-                  <label key={m} className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="mode" value={m} checked={form.mode === m} onChange={() => set('mode', m)} className="accent-brand-gold" />
-                    <span className="text-sm text-gray-300">{m === 'fixed' ? 'Fixed Price' : 'Cost + Markup'}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
             {/* Direction */}
             <div>
               <label className={labelClass}>Direction <span className="text-red-400">*</span></label>

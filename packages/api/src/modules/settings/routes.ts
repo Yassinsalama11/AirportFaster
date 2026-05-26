@@ -81,4 +81,64 @@ export async function settingsAdminRoutes(fastify: FastifyInstance): Promise<voi
       return reply.status(200).send({ success: true, data: { settings: value } });
     },
   );
+
+  /**
+   * GET /api/admin/settings/:key — read any setting
+   */
+  fastify.get<{ Params: { key: string } }>(
+    '/:key',
+    { preHandler: requirePermission('settings.read') },
+    async (request, reply) => {
+      const key = String(request.params.key ?? '').slice(0, 100);
+      if (!/^[a-zA-Z0-9_.-]+$/.test(key)) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid setting key' },
+        });
+      }
+      const setting = await prisma.setting.findUnique({ where: { key } });
+      return reply.status(200).send({
+        success: true,
+        data: { settings: (setting?.value ?? {}) as Record<string, unknown> },
+      });
+    },
+  );
+
+  /**
+   * PATCH /api/admin/settings/:key — merge any setting
+   */
+  fastify.patch<{ Params: { key: string }; Body: Record<string, unknown> }>(
+    '/:key',
+    { preHandler: requirePermission('settings.write') },
+    async (request, reply) => {
+      const key = String(request.params.key ?? '').slice(0, 100);
+      if (!/^[a-zA-Z0-9_.-]+$/.test(key)) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid setting key' },
+        });
+      }
+      const body = request.body && typeof request.body === 'object' ? request.body : {};
+
+      const existing = await prisma.setting.findUnique({ where: { key } });
+      const existingValue = (existing?.value ?? {}) as Record<string, unknown>;
+      const merged = { ...existingValue, ...body };
+
+      const setting = await prisma.setting.upsert({
+        where: { key },
+        create: {
+          key,
+          value: merged as Prisma.InputJsonValue,
+          domain: key.split('.')[0] ?? 'platform',
+          isPublic: false,
+        },
+        update: { value: merged as Prisma.InputJsonValue },
+      });
+
+      return reply.status(200).send({
+        success: true,
+        data: { settings: setting.value as Record<string, unknown> },
+      });
+    },
+  );
 }

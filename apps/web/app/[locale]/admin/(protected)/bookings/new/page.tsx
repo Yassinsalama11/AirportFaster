@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { adminApiCall } from '@/lib/admin-api';
 import { ManualBookingForm } from '@/components/admin/bookings/ManualBookingForm';
 

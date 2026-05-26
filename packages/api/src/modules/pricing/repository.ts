@@ -19,6 +19,7 @@ export async function createPricingRule(data: CreatePricingRule) {
     data: {
       airportServiceId: data.airportServiceId,
       supplierId: data.supplierId ?? null,
+      displayName: data.displayName ?? null,
       mode: data.mode,
       direction: data.direction,
       pricingModel: data.pricingModel,
@@ -50,6 +51,7 @@ export async function updatePricingRule(id: string, data: UpdatePricingRule) {
     where: { id },
     data: {
       supplierId: data.supplierId ?? undefined,
+      displayName: data.displayName ?? undefined,
       mode: data.mode,
       direction: data.direction,
       pricingModel: data.pricingModel,

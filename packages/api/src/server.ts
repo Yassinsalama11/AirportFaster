@@ -36,6 +36,7 @@ import { customerPortalRoutes } from './modules/customer-portal/routes.js';
 import { corporateAdminRoutes, corporatePublicRoutes } from './modules/corporate/routes.js';
 import { apiKeyAdminRoutes, apiV1Routes } from './modules/api-keys/routes.js';
 import { settingsAdminRoutes } from './modules/settings/routes.js';
+import { rolesAdminRoutes } from './modules/roles/routes.js';
 
 // Initialize Sentry before anything else
 initSentry();
@@ -270,6 +271,8 @@ export async function buildServer() {
 
   // ── Settings admin routes ──────────────────────────────────────────────────
   await app.register(settingsAdminRoutes, { prefix: '/api/admin/settings' });
+
+  await app.register(rolesAdminRoutes, { prefix: '/api/admin/roles' });
 
   // ── Public API v1 (developer API, key-authenticated) ──────────────────────
   await app.register(apiV1Routes, { prefix: '/api/v1' });

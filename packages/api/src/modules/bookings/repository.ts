@@ -12,6 +12,10 @@ const bookingInclude = {
   statusHistory: { orderBy: { createdAt: 'asc' } },
   notes: { orderBy: { createdAt: 'asc' } },
   events: { orderBy: { createdAt: 'asc' } },
+  assignments: {
+    orderBy: { createdAt: 'desc' as const },
+    include: { supplier: true },
+  },
   airportService: {
     include: {
       airport: { include: { translations: true } },

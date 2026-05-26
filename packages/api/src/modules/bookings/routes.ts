@@ -81,6 +81,66 @@ export async function bookingPublicRoutes(fastify: FastifyInstance): Promise<voi
     }
   });
 
+  // GET /api/public/bookings/:bookingId/summary — minimal info for payment + confirmation pages
+  fastify.get<{ Params: { bookingId: string } }>('/:bookingId/summary', async (request, reply) => {
+    const { z } = await import('zod');
+    const parsed = z.object({ bookingId: z.string().uuid() }).safeParse(request.params);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid booking id' },
+      });
+    }
+    const { prisma } = await import('@airportfaster/db');
+    const booking = await prisma.booking.findUnique({
+      where: { id: parsed.data.bookingId },
+      include: {
+        flights: { orderBy: { createdAt: 'asc' as const }, take: 1 },
+        airportService: {
+          include: {
+            airport: { include: { translations: true } },
+            service: { include: { translations: true } },
+          },
+        },
+      },
+    });
+    if (!booking) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: 'BOOKING_NOT_FOUND', message: 'Booking not found' },
+      });
+    }
+    const flight = booking.flights[0];
+    return reply.status(200).send({
+      success: true,
+      data: {
+        booking: {
+          id: booking.id,
+          reference: booking.reference,
+          status: booking.status,
+          direction: booking.direction,
+          currency: booking.currency,
+          totalMinor: booking.totalMinor,
+          serviceDateTime: booking.serviceDateTime,
+          passengerCount: booking.passengerCount,
+          airport: {
+            iataCode: booking.airportService.airport.iataCode,
+            city: booking.airportService.airport.city,
+            country: booking.airportService.airport.country,
+            translations: booking.airportService.airport.translations,
+          },
+          service: {
+            slug: booking.airportService.service.slug,
+            translations: booking.airportService.service.translations,
+          },
+          flight: flight
+            ? { flightNumber: flight.flightNumber, terminal: flight.terminal, scheduledTime: flight.scheduledTime }
+            : null,
+        },
+      },
+    });
+  });
+
   // GET /api/public/bookings/manage?token=<token>
   fastify.get('/manage', async (request, reply) => {
     const parseResult = ManageTokenQuerySchema.safeParse(request.query);

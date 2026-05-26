@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { notFound } from 'next/navigation';
 import { adminApiCall } from '@/lib/admin-api';
 import { PricingRuleForm } from '@/components/admin/pricing/PricingRuleForm';
