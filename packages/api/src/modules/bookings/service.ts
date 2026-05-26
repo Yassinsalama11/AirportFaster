@@ -152,7 +152,10 @@ export async function createBookingService(
     taxType: 'none',
   }));
 
-  const totalWithTax = taxResult.totalWithTaxMinorUnits;
+  // MVP pricing shows a final customer quote inclusive of AirportFaster margin.
+  // Tax is snapshotted as an estimate for finance, but it is not added on top of
+  // the customer-facing service price.
+  const bookingTotalMinor = priceResult.customerPriceMinor;
 
   // 3. Upsert customer.
   const customer = await upsertCustomer({
@@ -181,7 +184,7 @@ export async function createBookingService(
     specialRequests: data.specialRequests,
     locale: data.locale,
     currency: priceResult.displayCurrency,
-    totalMinor: totalWithTax,
+    totalMinor: bookingTotalMinor,
     manageTokenHash: tokenHash,
     ...(options?.source ? { source: options.source } : {}),
     ...(options?.initialStatus ? { initialStatus: options.initialStatus } : {}),
@@ -195,7 +198,7 @@ export async function createBookingService(
     markupMinor: priceResult.markupMinor,
     discountMinor: priceResult.discountMinor,
     taxEstimateMinor: taxResult.taxMinorUnits,
-    totalMinor: totalWithTax,
+    totalMinor: bookingTotalMinor,
     marginMinor: priceResult.marginMinor,
     currency: priceResult.displayCurrency,
     pricingRuleId: priceResult.appliedRuleId,
@@ -259,7 +262,7 @@ export async function createBookingService(
     bookingId: booking.id,
     bookingReference: booking.reference,
     manageToken: rawToken,
-    totalMinorUnits: totalWithTax,
+    totalMinorUnits: bookingTotalMinor,
     currency: priceResult.displayCurrency,
     status: booking.status,
   };
