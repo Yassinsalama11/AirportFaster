@@ -165,8 +165,7 @@ export async function quote(params: QuoteParams): Promise<QuoteResult | null> {
   if (rule.supplierId) {
     const commissionPercent = await findSupplierCommissionPercent(rule.supplierId);
     if (commissionPercent && commissionPercent > 0) {
-      const commissionBaseMinor = supplierCostMinor > 0 ? supplierCostMinor : customerPriceMinor;
-      supplierCommissionMinor = Math.round((commissionBaseMinor * commissionPercent) / 100);
+      supplierCommissionMinor = Math.round((customerPriceMinor * commissionPercent) / 100);
       customerPriceMinor += supplierCommissionMinor;
       markupMinor += supplierCommissionMinor;
     }

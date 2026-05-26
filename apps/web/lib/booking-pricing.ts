@@ -50,12 +50,11 @@ export function calculatePriceMinor(
   if (!rule) return 0;
   if (rule.mode === 'cost_plus_markup') {
     const supplierCost = calculateModelPriceMinor(rule, passengers, 'supplier');
-    return applySupplierCommission(applyMarkup(supplierCost, rule), supplierCost, rule);
+    return applySupplierCommission(applyMarkup(supplierCost, rule), rule);
   }
 
   const customerPrice = calculateModelPriceMinor(rule, passengers, 'customer');
-  const supplierCost = calculateModelPriceMinor(rule, passengers, 'supplier');
-  return applySupplierCommission(customerPrice, supplierCost, rule);
+  return applySupplierCommission(customerPrice, rule);
 }
 
 function applyMarkup(costMinor: number, rule: BookingPricingRule): number {
@@ -71,15 +70,13 @@ function applyMarkup(costMinor: number, rule: BookingPricingRule): number {
 
 function applySupplierCommission(
   customerPriceMinor: number,
-  supplierCostMinor: number,
   rule: BookingPricingRule,
 ): number {
   const commissionPercent = Number(rule.supplierCommissionPercent ?? 0);
   if (!rule.supplierId || !Number.isFinite(commissionPercent) || commissionPercent <= 0) {
     return customerPriceMinor;
   }
-  const commissionBaseMinor = supplierCostMinor > 0 ? supplierCostMinor : customerPriceMinor;
-  return customerPriceMinor + Math.round((commissionBaseMinor * commissionPercent) / 100);
+  return customerPriceMinor + Math.round((customerPriceMinor * commissionPercent) / 100);
 }
 
 function calculateModelPriceMinor(
