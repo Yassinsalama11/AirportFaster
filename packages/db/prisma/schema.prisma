@@ -593,6 +593,13 @@ enum PromoStatus {
   expired
 }
 
+enum ImportLogStatus {
+  running
+  success
+  partial
+  failed
+}
+
 /// passengerPricing JSON shape for `pricingModel = flat_per_type`:
 ///   { "adult": 8500, "child": 4500, "infant": 0 }
 /// (minor units, keyed by passenger type)
@@ -623,6 +630,9 @@ model PricingRule {
   validTo                DateTime?         @map("valid_to") @db.Timestamptz
   priority               Int               @default(0)
   status                 PricingRuleStatus @default(active)
+  sourceName             String?           @map("source_name") @db.VarChar(120)
+  sourceExternalId       String?           @map("source_external_id") @db.VarChar(160)
+  sourceSyncedAt         DateTime?         @map("source_synced_at") @db.Timestamptz
   createdById            String?           @map("created_by") @db.Uuid
   createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime          @updatedAt @map("updated_at") @db.Timestamptz
@@ -630,7 +640,49 @@ model PricingRule {
   airportService AirportService @relation(fields: [airportServiceId], references: [id], onDelete: Cascade)
 
   @@index([airportServiceId, status, priority])
+  @@unique([sourceName, sourceExternalId])
   @@map("pricing_rules")
+}
+
+model ImportLog {
+  id              String          @id @default(uuid()) @db.Uuid
+  sourceName      String          @map("source_name") @db.VarChar(120)
+  jobName         String          @map("job_name") @db.VarChar(120)
+  status          ImportLogStatus @default(running)
+  syncStartedAt   DateTime        @default(now()) @map("sync_started_at") @db.Timestamptz
+  syncFinishedAt  DateTime?       @map("sync_finished_at") @db.Timestamptz
+  recordsSeen     Int             @default(0) @map("records_seen")
+  recordsImported Int             @default(0) @map("records_imported")
+  recordsUpdated  Int             @default(0) @map("records_updated")
+  recordsSkipped  Int             @default(0) @map("records_skipped")
+  recordsFailed   Int             @default(0) @map("records_failed")
+  metadata        Json?
+  errorMessage    String?         @map("error_message")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  failedImports FailedImport[]
+
+  @@index([sourceName, jobName, syncStartedAt])
+  @@index([status])
+  @@map("import_logs")
+}
+
+model FailedImport {
+  id          String   @id @default(uuid()) @db.Uuid
+  importLogId String   @map("import_log_id") @db.Uuid
+  sourceName  String   @map("source_name") @db.VarChar(120)
+  entityType  String   @map("entity_type") @db.VarChar(80)
+  sourceKey   String?  @map("source_key") @db.VarChar(180)
+  reason      String
+  payload     Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  importLog ImportLog @relation(fields: [importLogId], references: [id], onDelete: Cascade)
+
+  @@index([importLogId])
+  @@index([sourceName, entityType])
+  @@map("failed_imports")
 }
 
 model CurrencyRate {

@@ -13,6 +13,8 @@
     "lint": "turbo run lint --filter=!@airportfaster/mobile",
     "typecheck": "turbo run typecheck --filter=!@airportfaster/mobile",
     "test": "turbo run test --filter=!@airportfaster/mobile",
+    "sync:gm-travel": "node scripts/import-gm-travel-solution-prices.mjs",
+    "sync:gm-travel:dry-run": "node scripts/import-gm-travel-solution-prices.mjs --dry-run",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "clean": "turbo run clean && rm -rf node_modules"
   },

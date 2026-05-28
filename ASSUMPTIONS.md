@@ -3,7 +3,7 @@
 > Smart assumptions made to keep execution moving. Each must be confirmed or rejected by the founder.
 > Format: ID · date · assumption · why · what changes if wrong · status.
 >
-> **Version:** 1.0 · **Last updated:** 2026-05-14
+> **Version:** 1.0 · **Last updated:** 2026-05-28
 
 ---
 
@@ -19,5 +19,7 @@
 | A-008 | Taxes/VAT are **tracked but not auto-calculated** in MVP (estimate field only); full tax engine is post-MVP. | Tax rules vary by jurisdiction; not an MVP blocker. | Finance module gains a tax-calculation component. | 🟡 Open |
 | A-009 | Promo codes are platform-level and admin-created in MVP; no supplier-funded promos yet. | Simpler pricing snapshot logic. | `promo_codes` gains funding-source + supplier link. | 🟢 Likely correct |
 | A-010 | Reviews are collected post-completion via the review-request notification and are admin-moderated before display. | Trust/quality control consistent with premium positioning. | Review moderation workflow changes. | 🟡 Open |
+| A-011 | GM Travel Solution `TRANSFER` products are imported as pricing direction `both`. | AirportFaster currently supports `arrival`, `departure`, and `both`, but not a dedicated transit/transfer direction. | Add a `transfer` pricing direction and remap imported source rows. | 🟡 Open |
+| A-012 | WooCommerce Store API product prices are the supplier price of record for GM Travel Solution imports. | The public product JSON exposes price and currency directly; no separate authenticated supplier tariff API was found. | Swap the importer adapter to the official tariff endpoint and keep the same source-tracked sync tables. | 🟡 Open |
 
-**Action for founder:** please confirm or correct A-001, A-002, A-003, A-004, A-006, A-008, A-010.
+**Action for founder:** please confirm or correct A-001, A-002, A-003, A-004, A-006, A-008, A-010, A-011, A-012.

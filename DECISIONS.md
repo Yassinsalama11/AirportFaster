@@ -3,9 +3,13 @@
 > Every architectural or significant product decision is recorded here with rationale.
 > Format: ID · date · decision · rationale · status. Newest at top.
 >
-> **Version:** 1.1 · **Last updated:** 2026-05-16
+> **Version:** 1.1 · **Last updated:** 2026-05-28
 
 ---
+
+### D-017 — Supplier price imports are source-tracked and idempotent
+**Date:** 2026-05-28 · **Status:** Accepted
+GM Travel Solution pricing is imported through direct WordPress/WooCommerce JSON endpoints where available, with rendered page parsing used only to locate embedded WooCommerce product IDs that are not exposed as a structured airport-price API. Imported pricing rules store `sourceName`, `sourceExternalId`, and `sourceSyncedAt`, with a unique source key so future syncs update existing rows instead of duplicating them. **Rationale:** supplier pricing must support repeatable bulk syncs, operational review of failed mappings, and future scheduled jobs without breaking booking price snapshots. **Impact:** `import_logs` records each run, `failed_imports` records unmapped airports/products/services, and GM Travel Solution is stored as the supplier source on imported pricing rules.
 
 ### D-016 — Supplier commission is included in customer booking quotes
 **Date:** 2026-05-26 · **Status:** Accepted
