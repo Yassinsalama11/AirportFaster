@@ -40,8 +40,13 @@ export async function findAirportBySlug(slug: string): Promise<AirportRecord | n
   });
 }
 
-export async function airportSlugExists(slug: string): Promise<boolean> {
-  const count = await prisma.airport.count({ where: { slug } });
+export async function airportSlugExists(slug: string, excludingAirportId?: string): Promise<boolean> {
+  const count = await prisma.airport.count({
+    where: {
+      slug,
+      ...(excludingAirportId ? { id: { not: excludingAirportId } } : {}),
+    },
+  });
   return count > 0;
 }
 
@@ -148,14 +153,21 @@ export async function createAirport(
 
 export async function updateAirport(
   id: string,
-  data: UpdateAirportBody,
+  data: UpdateAirportBody & { slug?: string },
 ): Promise<AirportRecord> {
   return prisma.$transaction(async (tx) => {
+    const currentAirport = await tx.airport.findUniqueOrThrow({
+      where: { id },
+      select: { slug: true },
+    });
+    const slugChanged = Boolean(data.slug && data.slug !== currentAirport.slug);
+
     await tx.airport.update({
       where: { id },
       data: {
         iataCode: data.iataCode,
         icaoCode: data.icaoCode,
+        slug: data.slug,
         country: data.country,
         city: data.city,
         timezone: data.timezone,
@@ -212,6 +224,35 @@ export async function updateAirport(
             serviceId: airportService.serviceId,
             isActive: airportService.isActive ?? true,
           })),
+        });
+      }
+    }
+
+    if (slugChanged && data.slug) {
+      const seo = await tx.airportSeo.findUnique({ where: { airportId: id } });
+      if (seo) {
+        const baseUrl = process.env['NEXT_PUBLIC_BASE_URL'] ?? 'https://airportfaster.com';
+        const oldCanonicalSuffix = `/airports/${currentAirport.slug}`;
+        const nextCanonicalUrl = `${baseUrl}/en/airports/${data.slug}`;
+        const shouldUpdateCanonical =
+          !seo.canonicalUrl ||
+          seo.canonicalUrl.endsWith(oldCanonicalSuffix) ||
+          seo.canonicalUrl.endsWith(`/en${oldCanonicalSuffix}`) ||
+          seo.canonicalUrl.endsWith(`/ar${oldCanonicalSuffix}`);
+        const schemaJson =
+          seo.schemaJson && typeof seo.schemaJson === 'object' && !Array.isArray(seo.schemaJson)
+            ? {
+                ...seo.schemaJson,
+                url: nextCanonicalUrl,
+              }
+            : undefined;
+
+        await tx.airportSeo.update({
+          where: { airportId: id },
+          data: {
+            ...(shouldUpdateCanonical ? { canonicalUrl: nextCanonicalUrl } : {}),
+            ...(schemaJson ? { schemaJson } : {}),
+          },
         });
       }
     }

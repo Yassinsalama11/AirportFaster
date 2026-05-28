@@ -43,13 +43,13 @@ function getSlugSource(data: CreateAirportBody): string {
   return english?.name ?? data.translations[0]?.name ?? `${data.city} ${data.iataCode}`;
 }
 
-async function generateUniqueSlug(source: string): Promise<string> {
+async function generateUniqueSlug(source: string, existingAirportId?: string): Promise<string> {
   const baseSlug = slugify(source);
   const fallbackSlug = baseSlug || 'airport';
   let slug = fallbackSlug;
   let suffix = 2;
 
-  while (await airportSlugExists(slug)) {
+  while (await airportSlugExists(slug, existingAirportId)) {
     slug = `${fallbackSlug}-${suffix}`;
     suffix += 1;
   }
@@ -113,10 +113,25 @@ export async function updateAirportService(
   id: string,
   data: UpdateAirportBody,
 ): Promise<AirportRecord> {
-  await getAirportService(id);
+  const currentAirport = await getAirportService(id);
+  const nextSlug = data.regenerateSlug
+    ? await generateUniqueSlug(getSlugSource({
+        iataCode: data.iataCode ?? currentAirport.iataCode,
+        country: data.country ?? currentAirport.country,
+        city: data.city ?? currentAirport.city,
+        timezone: data.timezone ?? currentAirport.timezone,
+        translations: data.translations?.length
+          ? data.translations
+          : currentAirport.translations.map((translation) => ({
+              locale: translation.locale,
+              name: translation.name,
+              description: translation.description ?? undefined,
+            })),
+      }), id)
+    : undefined;
 
   try {
-    return await updateAirport(id, data);
+    return await updateAirport(id, { ...data, slug: nextSlug });
   } catch (error) {
     mapPrismaError(error);
   }

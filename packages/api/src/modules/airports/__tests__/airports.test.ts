@@ -253,6 +253,52 @@ test('airport admin can create, publish, and list airports', async () => {
     createdAirportIds.push(duplicateSlugAirport.id);
     assert.match(duplicateSlugAirport.slug, /-2$/);
 
+    await prisma.airportSeo.create({
+      data: {
+        airportId: createdAirport.id,
+        canonicalUrl: `https://airportfaster.com/en/airports/${createdAirport.slug}`,
+        schemaJson: {
+          '@context': 'https://schema.org',
+          '@type': 'Airport',
+          name: airportName,
+          url: `https://airportfaster.com/en/airports/${createdAirport.slug}`,
+        },
+      },
+    });
+
+    const renamedAirportName = `Renamed Test Airport ${runId}`;
+    const renameResponse = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/airports/${createdAirport.id}`,
+      headers: {
+        cookie: sessionCookie(token),
+      },
+      payload: {
+        iataCode: createdAirport.iataCode,
+        country: 'GB',
+        city: 'London',
+        timezone: 'Europe/London',
+        regenerateSlug: true,
+        translations: [
+          {
+            locale: 'en',
+            name: renamedAirportName,
+            description: 'Renamed airport for route tests.',
+          },
+        ],
+      },
+    });
+
+    assert.equal(renameResponse.statusCode, 200);
+    const renamedAirport = renameResponse.json().data.airport;
+    assert.match(renamedAirport.slug, /^renamed-test-airport-/);
+    assert.equal(renamedAirport.id, createdAirport.id);
+    assert.equal(renamedAirport.airportServices.length, 1);
+    assert.equal(
+      renamedAirport.seo.canonicalUrl,
+      `https://airportfaster.com/en/airports/${renamedAirport.slug}`,
+    );
+
     const publishResponse = await app.inject({
       method: 'PATCH',
       url: `/api/admin/airports/${createdAirport.id}/publish`,

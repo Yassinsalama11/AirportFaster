@@ -53,6 +53,7 @@ export const CreateAirportBodySchema = z.object({
 
 export const UpdateAirportBodySchema = CreateAirportBodySchema.partial().extend({
   status: AirportStatusSchema.optional(),
+  regenerateSlug: z.boolean().optional(),
 });
 
 export const ListAirportsQuerySchema = z.object({

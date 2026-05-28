@@ -129,6 +129,7 @@ export function AirportForm({ airport, services, isNew }: Props) {
   const [timezone, setTimezone] = useState(airport?.timezone ?? 'UTC');
   const timezoneOptions = useMemo(() => getTimezoneOptions(timezone), [timezone]);
   const [status, setStatus] = useState(airport?.status ?? 'draft');
+  const [regenerateSlug, setRegenerateSlug] = useState(false);
   const primaryImage =
     airport?.images?.find((image) => image.isPrimary) ?? airport?.images?.[0];
   const [photoUrl, setPhotoUrl] = useState(primaryImage?.url ?? '');
@@ -213,6 +214,28 @@ export function AirportForm({ airport, services, isNew }: Props) {
         sortOrder: 0,
       },
     ];
+  }
+
+  function validateBasicInfo(): string | null {
+    if (!/^[A-Z]{3}$/.test(iataCode.trim().toUpperCase())) {
+      return 'IATA code must be exactly 3 letters.';
+    }
+    if (icaoCode.trim() && !/^[A-Z]{4}$/.test(icaoCode.trim().toUpperCase())) {
+      return 'ICAO code must be exactly 4 letters when provided.';
+    }
+    if (!/^[A-Z]{2}$/.test(country.trim().toUpperCase())) {
+      return 'Select a valid 2-letter country code.';
+    }
+    if (!city.trim()) {
+      return 'City is required.';
+    }
+    if (!timezone.trim() || !timezoneOptions.includes(timezone.trim())) {
+      return 'Select a valid timezone.';
+    }
+    if (!enName.trim()) {
+      return 'English airport name is required.';
+    }
+    return null;
   }
 
   async function uploadPhoto(file: File) {
@@ -304,6 +327,11 @@ export function AirportForm({ airport, services, isNew }: Props) {
   }
 
   async function saveBasicInfo() {
+    const validationError = validateBasicInfo();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -336,35 +364,19 @@ export function AirportForm({ airport, services, isNew }: Props) {
           city,
           timezone,
           status,
+          regenerateSlug,
+          translations: [
+            { locale: 'en', name: enName, description: enDescription || undefined },
+            ...(arName.trim() ? [{ locale: 'ar', name: arName.trim(), description: arDescription.trim() || undefined }] : []),
+          ],
         });
         if (!result.success) {
           setError(result.error?.message ?? 'Failed to update airport');
           return;
         }
-        // Also persist translations (name + description) so they reflect on the website
-        if (enName.trim()) {
-          const enResult = await callApi(`/api/admin/airports/${airport!.id}/translations`, 'POST', {
-            locale: 'en',
-            name: enName,
-            description: enDescription || undefined,
-          });
-          if (!enResult.success) {
-            setError(enResult.error?.message ?? 'Failed to save English translation');
-            return;
-          }
-        }
-        if (arName.trim()) {
-          const arResult = await callApi(`/api/admin/airports/${airport!.id}/translations`, 'POST', {
-            locale: 'ar',
-            name: arName.trim(),
-            description: arDescription.trim() || undefined,
-          });
-          if (!arResult.success) {
-            setError(arResult.error?.message ?? 'Failed to save Arabic translation');
-            return;
-          }
-        }
+        setRegenerateSlug(false);
         setSuccessMsg('Basic info saved');
+        router.refresh();
       }
     } catch {
       setError('Network error');
@@ -802,6 +814,12 @@ export function AirportForm({ airport, services, isNew }: Props) {
           {!isNew && (
             <div className="space-y-4 p-4 bg-white/5 rounded-xl border border-white/10">
               <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Names &amp; Description</p>
+              {airport?.slug && (
+                <div className="rounded-lg border border-white/10 bg-brand-black p-3">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Slug</p>
+                  <code className="mt-1 block text-sm text-brand-gold break-all">{airport.slug}</code>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">English Name *</label>
                 <input
@@ -844,7 +862,22 @@ export function AirportForm({ airport, services, isNew }: Props) {
                   className="w-full px-4 py-2.5 bg-brand-black border border-white/10 rounded-lg text-brand-white text-sm focus:border-brand-gold outline-none resize-none"
                 />
               </div>
-              <p className="text-xs text-gray-500">Saved automatically when you click <strong className="text-brand-white">Save Basic Info</strong>.</p>
+              <label className="flex items-start gap-3 rounded-lg border border-white/10 bg-brand-black p-3">
+                <input
+                  type="checkbox"
+                  checked={regenerateSlug}
+                  onChange={(e) => setRegenerateSlug(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-white/20 bg-brand-black text-brand-gold focus:ring-brand-gold"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-brand-white">Regenerate slug from English name</span>
+                  <span className="mt-1 block text-xs text-gray-500">
+                    Use this when correcting the public airport name. The airport ID, bookings, pricing,
+                    supplier links, and other relations stay unchanged; the canonical SEO URL updates with the new slug.
+                  </span>
+                </span>
+              </label>
+              <p className="text-xs text-gray-500">Saved when you click <strong className="text-brand-white">Save Basic Info</strong>.</p>
             </div>
           )}
           {!isNew && (
