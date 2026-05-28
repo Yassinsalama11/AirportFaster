@@ -1,4 +1,5 @@
 import { Readable } from 'node:stream';
+import crypto from 'node:crypto';
 
 const dbModulePath = process.env.AIRPORTFASTER_DB_MODULE ?? '../packages/db/dist/index.js';
 const storageModulePath = process.env.AIRPORTFASTER_STORAGE_MODULE ?? '../packages/api/dist/lib/storage.js';
@@ -16,6 +17,14 @@ const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const CONCURRENCY = Number(process.env.AIRPORT_IMAGE_IMPORT_CONCURRENCY ?? '15');
 const OVERWRITE = process.argv.includes('--overwrite');
 const LIMIT = Number(process.env.AIRPORT_IMAGE_IMPORT_LIMIT ?? '0');
+const TARGET_IATAS = (process.env.AIRPORT_IMAGE_IMPORT_IATAS ?? '')
+  .split(',')
+  .map((value) => value.trim().toUpperCase())
+  .filter(Boolean);
+const PROVIDER_ORDER = (process.env.AIRPORT_IMAGE_PROVIDER_ORDER ?? 'pexels,unsplash')
+  .split(',')
+  .map((value) => value.trim().toLowerCase())
+  .filter((value) => value === 'pexels' || value === 'unsplash');
 
 if (!PEXELS_API_KEY && !UNSPLASH_ACCESS_KEY) {
   throw new Error('Set PEXELS_API_KEY or UNSPLASH_ACCESS_KEY before running the image import.');
@@ -52,12 +61,13 @@ async function searchPexels(airportName, city) {
   const url = new URL('https://api.pexels.com/v1/search');
   url.searchParams.set('query', `${airportName} ${city} airport`);
   url.searchParams.set('orientation', 'landscape');
-  url.searchParams.set('per_page', '10');
+  url.searchParams.set('per_page', '30');
   const data = await fetchJson(url, { Authorization: PEXELS_API_KEY });
   return (data.photos ?? [])
     .filter((photo) => photo.width > 1200 && photo.width > photo.height)
     .map((photo) => ({
       url: photo.src?.original ?? photo.src?.large2x ?? photo.src?.large,
+      providerId: String(photo.id),
       width: photo.width,
       height: photo.height,
       source: 'pexels',
@@ -71,7 +81,7 @@ async function searchUnsplash(airportName, city) {
   const url = new URL('https://api.unsplash.com/search/photos');
   url.searchParams.set('query', `${airportName} ${city} airport terminal`);
   url.searchParams.set('orientation', 'landscape');
-  url.searchParams.set('per_page', '10');
+  url.searchParams.set('per_page', '30');
   url.searchParams.set('content_filter', 'high');
   const data = await fetchJson(url, {
     Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`,
@@ -86,22 +96,41 @@ async function searchUnsplash(airportName, city) {
       width: photo.width,
       height: photo.height,
       source: 'unsplash',
+      providerId: String(photo.id),
       creditUrl: photo.links?.html,
     }))
     .filter((candidate) => candidate.url);
 }
 
-async function findImage(airportName, city) {
-  const candidates = PEXELS_API_KEY
-    ? await searchPexels(airportName, city)
-    : await searchUnsplash(airportName, city);
-  if (candidates.length > 0) return candidates[0];
+async function searchProvider(provider, airportName, city) {
+  if (provider === 'pexels') return searchPexels(airportName, city);
+  if (provider === 'unsplash') return searchUnsplash(airportName, city);
+  return [];
+}
 
-  if (PEXELS_API_KEY && UNSPLASH_ACCESS_KEY) {
-    const fallback = await searchUnsplash(airportName, city);
-    return fallback[0] ?? null;
+async function findImageCandidates(airportName, city, iataCode) {
+  const queries = [
+    `${airportName} ${iataCode} airport`,
+    `${airportName} airport terminal`,
+    `${airportName} ${city}`,
+    `${city} airport terminal`,
+  ];
+  const seen = new Set();
+  const candidates = [];
+
+  for (const query of queries) {
+    for (const provider of PROVIDER_ORDER) {
+      const results = await searchProvider(provider, query, city);
+      for (const result of results) {
+        const key = `${result.source}:${result.providerId ?? result.url}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        candidates.push(result);
+      }
+    }
   }
-  return null;
+
+  return candidates;
 }
 
 async function downloadImage(url) {
@@ -134,17 +163,67 @@ async function toWebp(buffer) {
     .toBuffer();
 }
 
-async function processAirport(airport, storage) {
+function hashBuffer(buffer) {
+  return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
+async function buildExistingImageHashes(targetAirportIds) {
+  const targetIds = new Set(targetAirportIds);
+  const existingImages = await prisma.airportImage.findMany({
+    where: {
+      isPrimary: true,
+      airportId: {
+        notIn: [...targetIds],
+      },
+    },
+    select: {
+      url: true,
+    },
+  });
+  const hashes = new Set();
+  await runPool(existingImages, async (image) => {
+    try {
+      const buffer = await downloadImage(image.url);
+      hashes.add(hashBuffer(buffer));
+    } catch {
+      // Existing image hash checks are best-effort; upload/search should not fail because one CDN file is unavailable.
+    }
+  }, 10);
+  return hashes;
+}
+
+async function processAirport(airport, storage, reservedHashes) {
   const airportName = getAirportName(airport);
-  const candidate = await findImage(airportName, airport.city);
-  if (!candidate) {
+  const candidates = await findImageCandidates(airportName, airport.city, airport.iataCode);
+  if (candidates.length === 0) {
     return { iataCode: airport.iataCode, status: 'skipped', reason: 'no API image candidate' };
   }
 
-  const original = await downloadImage(candidate.url);
-  const webp = await toWebp(original);
+  let selected = null;
+  for (const candidate of candidates) {
+    try {
+      const original = await downloadImage(candidate.url);
+      const webp = await toWebp(original);
+      const hash = hashBuffer(webp);
+      if (reservedHashes.has(hash)) continue;
+      reservedHashes.add(hash);
+      selected = { candidate, webp };
+      break;
+    } catch {
+      // Continue to the next API candidate; fast completion matters more than perfect image selection.
+    }
+  }
+
+  if (!selected) {
+    return {
+      iataCode: airport.iataCode,
+      status: 'skipped',
+      reason: 'no unique valid landscape image candidate',
+    };
+  }
+
   const filename = `airports/${airport.iataCode.toLowerCase()}-${slugify(airportName)}.webp`;
-  const url = await storage.upload(filename, Readable.from(webp), 'image/webp');
+  const url = await storage.upload(filename, Readable.from(selected.webp), 'image/webp');
   const altText = `${airportName} (${airport.iataCode})`;
 
   await prisma.$transaction(async (tx) => {
@@ -166,7 +245,6 @@ async function processAirport(airport, storage) {
     await tx.airportSeo.updateMany({
       where: {
         airportId: airport.id,
-        OR: [{ ogImage: null }, { ogImage: '' }],
       },
       data: {
         ogImage: url,
@@ -177,7 +255,7 @@ async function processAirport(airport, storage) {
   return {
     iataCode: airport.iataCode,
     status: 'updated',
-    source: candidate.source,
+    source: selected.candidate.source,
     url,
   };
 }
@@ -208,6 +286,7 @@ async function main() {
   const airports = await prisma.airport.findMany({
     where: {
       status: 'active',
+      ...(TARGET_IATAS.length > 0 ? { iataCode: { in: TARGET_IATAS } } : {}),
       ...(OVERWRITE ? {} : { images: { none: { isPrimary: true } } }),
     },
     include: {
@@ -219,7 +298,12 @@ async function main() {
   });
 
   const storage = getStorageAdapter();
-  const results = await runPool(airports, (airport) => processAirport(airport, storage), CONCURRENCY);
+  const existingHashes = await buildExistingImageHashes(airports.map((airport) => airport.id));
+  const results = await runPool(
+    airports,
+    (airport) => processAirport(airport, storage, existingHashes),
+    CONCURRENCY,
+  );
   const summary = {
     requested: airports.length,
     updated: results.filter((result) => result.status === 'updated').length,
