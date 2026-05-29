@@ -5,7 +5,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { localeAlternates, ogLocales } from '@/lib/seo';
 import { SchemaScript } from '@/components/public/SchemaScript';
 import { BookNowButton } from '@/components/public/BookNowButton';
-import { airportSchema, breadcrumbSchema, howToSchema, offerSchema, speakableSchema } from '@/lib/schema';
+import { airportSchema, breadcrumbSchema, howToSchema, offerSchema, speakableSchema, webPageSchema } from '@/lib/schema';
+import { selectPricingRule, type BookingPricingRule } from '@/lib/booking-pricing';
 
 export const revalidate = 3600;
 
@@ -37,6 +38,13 @@ interface AirportServiceRow {
   id: string;
   isActive: boolean;
   service: Service;
+  pricingRules?: BookingPricingRule[];
+}
+
+interface AirportImage {
+  url: string;
+  altText?: string | null;
+  isPrimary?: boolean;
 }
 
 interface Airport {
@@ -48,6 +56,7 @@ interface Airport {
   status: string;
   translations: AirportTranslation[];
   airportServices: AirportServiceRow[];
+  images?: AirportImage[];
 }
 
 // ── Data fetchers ─────────────────────────────────────────────────────────────
@@ -210,6 +219,16 @@ export default async function AirportServicePage({
     (t) => t.locale === 'en',
   )?.description;
 
+  // ── Price + image (for structured data) ──────────────────────────────────
+  const cheapestRule = selectPricingRule(serviceRow.pricingRules);
+  const fromPriceEur =
+    cheapestRule?.basePriceMinor != null && cheapestRule.basePriceMinor > 0
+      ? cheapestRule.basePriceMinor / 100
+      : undefined;
+  const primaryImage =
+    airport.images?.find((img) => img.isPrimary) ?? airport.images?.[0];
+  const primaryImageUrl = primaryImage?.url;
+
   // ── JSON-LD structured data ───────────────────────────────────────────────
 
   const serviceJsonLd = {
@@ -252,7 +271,31 @@ export default async function AirportServicePage({
         description: serviceDescription ?? `Premium ${serviceName} service at ${airportName} (${airport.iataCode})`,
         steps: HOW_IT_WORKS.map((s) => ({ name: s.title, text: s.description })),
       })} />
-      <SchemaScript schema={offerSchema({ serviceName, airportName, iataCode: airport.iataCode, slug, serviceSlug })} />
+      <SchemaScript schema={offerSchema({
+        serviceName,
+        airportName,
+        iataCode: airport.iataCode,
+        slug,
+        serviceSlug,
+        ...(fromPriceEur != null && { fromPriceEur }),
+        ...(primaryImageUrl && { imageUrl: primaryImageUrl }),
+        countryCode: airport.country,
+        ...(serviceDescription && { description: serviceDescription }),
+        locale,
+      })} />
+      <SchemaScript schema={webPageSchema({
+        name: `${serviceName} at ${airportName} (${airport.iataCode})`,
+        description: serviceDescription ?? `Book ${serviceName} at ${airportName}. Premium airport assistance with instant confirmation.`,
+        url: `${BASE_URL}/${locale}/airports/${slug}/${serviceSlug}`,
+        locale,
+        ...(primaryImageUrl && { primaryImageUrl }),
+        breadcrumb: [
+          { name: 'Home', url: `${BASE_URL}/${locale}` },
+          { name: 'Airports', url: `${BASE_URL}/${locale}/airports` },
+          { name: airportName, url: `${BASE_URL}/${locale}/airports/${slug}` },
+          { name: serviceName, url: `${BASE_URL}/${locale}/airports/${slug}/${serviceSlug}` },
+        ],
+      })} />
       <SchemaScript schema={speakableSchema(['.airport-service-summary', 'h1'])} />
 
       {/* Breadcrumb */}

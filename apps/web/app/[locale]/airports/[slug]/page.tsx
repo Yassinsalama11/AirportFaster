@@ -9,7 +9,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getInternalLinksForEntity } from '@/lib/internal-links';
 import { localeAlternates, ogLocales } from '@/lib/seo';
 import { SchemaScript } from '@/components/public/SchemaScript';
-import { airportSchema, breadcrumbSchema } from '@/lib/schema';
+import { airportSchema, breadcrumbSchema, offerSchema, webPageSchema, itemListSchema } from '@/lib/schema';
 import {
   calculatePriceMinor,
   formatCurrency,
@@ -248,10 +248,58 @@ export default async function AirportLandingPage({
     <>
       <SchemaScript schema={airportSchema({ name, iataCode: airport.iataCode, city: airport.city, country: airport.country, slug })} />
       <SchemaScript schema={breadcrumbSchema([
-        { name: t('breadcrumb_home'), url: `${BASE_URL}/en` },
-        { name: t('breadcrumb_airports'), url: `${BASE_URL}/en/airports` },
-        { name: `${name} (${airport.iataCode})`, url: `${BASE_URL}/en/airports/${slug}` },
+        { name: t('breadcrumb_home'), url: `${BASE_URL}/${locale}` },
+        { name: t('breadcrumb_airports'), url: `${BASE_URL}/${locale}/airports` },
+        { name: `${name} (${airport.iataCode})`, url: `${BASE_URL}/${locale}/airports/${slug}` },
       ])} />
+      <SchemaScript schema={webPageSchema({
+        name: `${name} (${airport.iataCode}) — Premium Airport Services | AirportFaster`,
+        description: `Book Fast Track, Meet & Greet, and Lounge Access at ${name} (${airport.iataCode}). Premium airport assistance with instant confirmation.`,
+        url: `${BASE_URL}/${locale}/airports/${slug}`,
+        locale,
+        ...(primaryImage?.url && { primaryImageUrl: primaryImage.url }),
+        breadcrumb: [
+          { name: t('breadcrumb_home'), url: `${BASE_URL}/${locale}` },
+          { name: t('breadcrumb_airports'), url: `${BASE_URL}/${locale}/airports` },
+          { name: name, url: `${BASE_URL}/${locale}/airports/${slug}` },
+        ],
+      })} />
+      {airport.airportServices
+        .filter((as) => as.isActive)
+        .map((as) => {
+          const svcName =
+            as.service.translations.find((t) => t.locale === 'en')?.name ?? as.service.slug;
+          const rule = as.pricingRules?.find(
+            (r) => r.basePriceMinor != null && r.basePriceMinor > 0,
+          );
+          const fromPriceEur =
+            rule?.basePriceMinor != null ? rule.basePriceMinor / 100 : undefined;
+          return (
+            <SchemaScript
+              key={`offer-${as.service.slug}`}
+              schema={offerSchema({
+                serviceName: svcName,
+                airportName: name,
+                iataCode: airport.iataCode,
+                slug,
+                serviceSlug: as.service.slug,
+                ...(fromPriceEur != null && { fromPriceEur }),
+                ...(primaryImage?.url && { imageUrl: primaryImage.url }),
+                countryCode: airport.country,
+                locale,
+              })}
+            />
+          );
+        })}
+      <SchemaScript schema={itemListSchema(
+        airport.airportServices
+          .filter((as) => as.isActive)
+          .map((as) => ({
+            name:
+              as.service.translations.find((t) => t.locale === 'en')?.name ?? as.service.slug,
+            url: `${BASE_URL}/${locale}/airports/${slug}/${as.service.slug}`,
+          })),
+      )} />
 
       {/* ── Breadcrumb ── */}
       <div className="border-b border-line/60 bg-surface">

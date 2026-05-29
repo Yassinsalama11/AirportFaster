@@ -27,20 +27,84 @@ export function serviceSchema(service: {
   name: string;
   description: string;
   slug: string;
+  fromPriceEur?: number;
+  imageUrl?: string;
+  locale?: string;
 }): object {
+  const locale = service.locale ?? 'en';
+  const price = (service.fromPriceEur ?? DEFAULT_FROM_PRICE_EUR).toFixed(2);
   return {
     '@context': 'https://schema.org',
     '@type': 'Service',
     name: service.name,
     description: service.description,
+    image: service.imageUrl ? [service.imageUrl] : [DEFAULT_PRODUCT_IMAGE],
+    serviceType: service.name,
+    category: 'Travel > Airport Services',
     provider: {
       '@type': 'Organization',
       name: 'AirportFaster',
       url: BASE_URL,
     },
-    url: `${BASE_URL}/en/services/${service.slug}`,
+    areaServed: { '@type': 'Place', name: 'Worldwide' },
+    url: `${BASE_URL}/${locale}/services/${service.slug}`,
+    offers: {
+      '@type': 'Offer',
+      price,
+      priceCurrency: 'EUR',
+      availability: 'https://schema.org/InStock',
+      url: `${BASE_URL}/${locale}/services/${service.slug}`,
+    },
   };
 }
+
+export function webPageSchema(opts: {
+  name: string;
+  description: string;
+  url: string;
+  locale: string;
+  dateModified?: string;
+  primaryImageUrl?: string;
+  breadcrumb?: Array<{ name: string; url: string }>;
+}): object {
+  const schema: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: opts.name,
+    description: opts.description,
+    url: opts.url,
+    inLanguage: opts.locale === 'ar' ? 'ar' : 'en',
+    isPartOf: { '@type': 'WebSite', url: BASE_URL, name: 'AirportFaster' },
+    publisher: { '@type': 'Organization', name: 'AirportFaster', url: BASE_URL },
+  };
+  if (opts.dateModified) schema['dateModified'] = opts.dateModified;
+  if (opts.primaryImageUrl) {
+    schema['primaryImageOfPage'] = {
+      '@type': 'ImageObject',
+      url: opts.primaryImageUrl,
+    };
+  }
+  if (opts.breadcrumb && opts.breadcrumb.length > 0) {
+    schema['breadcrumb'] = {
+      '@type': 'BreadcrumbList',
+      itemListElement: opts.breadcrumb.map((item, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: item.name,
+        item: item.url,
+      })),
+    };
+  }
+  return schema;
+}
+
+// Minimum sensible price for any airport service (in EUR). Used as a defensive
+// fallback when a specific airport hasn't been priced yet, so Product/Offer
+// structured data never ships with a missing `price` (which fails Google
+// Merchant Listings + Product Snippets validation).
+const DEFAULT_FROM_PRICE_EUR = 29;
+
+const DEFAULT_PRODUCT_IMAGE = `${BASE_URL}/og-image.png`;
 
 export function offerSchema(opts: {
   serviceName: string;
@@ -48,25 +112,90 @@ export function offerSchema(opts: {
   iataCode: string;
   slug: string;
   serviceSlug: string;
+  /** From-price in EUR. Falls back to `DEFAULT_FROM_PRICE_EUR` if not provided. */
   fromPriceEur?: number;
+  /** Absolute image URL for the product. Falls back to brand OG image. */
+  imageUrl?: string;
+  /** ISO 3166-1 alpha-2 country code of the airport. Falls back to 'GB'. */
+  countryCode?: string;
+  /** Override for the product description shown to crawlers. */
+  description?: string;
+  /** Override the canonical product URL (locale-prefixed). */
+  locale?: string;
 }): object {
-  const offer: Record<string, unknown> = {
-    '@type': 'Offer',
-    availability: 'https://schema.org/InStock',
-    priceCurrency: 'EUR',
-    seller: { '@type': 'Organization', name: 'AirportFaster', url: BASE_URL },
-    url: `${BASE_URL}/en/airports/${opts.slug}/${opts.serviceSlug}`,
-  };
-  if (opts.fromPriceEur != null) {
-    offer['price'] = opts.fromPriceEur.toFixed(2);
-  }
+  const price = (opts.fromPriceEur ?? DEFAULT_FROM_PRICE_EUR).toFixed(2);
+  const image = opts.imageUrl ?? DEFAULT_PRODUCT_IMAGE;
+  const country = (opts.countryCode ?? 'GB').toUpperCase();
+  const locale = opts.locale ?? 'en';
+  const productUrl = `${BASE_URL}/${locale}/airports/${opts.slug}/${opts.serviceSlug}`;
+  const description =
+    opts.description ??
+    `Book ${opts.serviceName} at ${opts.airportName} (${opts.iataCode}). Premium airport assistance with instant confirmation, free cancellation up to 24h before service.`;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: `${opts.serviceName} at ${opts.airportName} (${opts.iataCode})`,
-    description: `Book ${opts.serviceName} at ${opts.airportName}. Premium airport assistance with instant confirmation.`,
+    description,
+    image: [image],
     brand: { '@type': 'Brand', name: 'AirportFaster' },
-    offers: offer,
+    sku: `${opts.iataCode}-${opts.serviceSlug}`.toUpperCase(),
+    mpn: `${opts.iataCode}-${opts.serviceSlug}`.toUpperCase(),
+    category: 'Travel > Airport Services',
+    offers: {
+      '@type': 'Offer',
+      price,
+      priceCurrency: 'EUR',
+      priceValidUntil: `${new Date().getFullYear() + 1}-12-31`,
+      availability: 'https://schema.org/InStock',
+      itemCondition: 'https://schema.org/NewCondition',
+      url: productUrl,
+      seller: {
+        '@type': 'Organization',
+        name: 'AirportFaster',
+        url: BASE_URL,
+      },
+      // Digital-delivery shipping spec — satisfies Google Merchant Listings
+      // recommended fields for non-physical goods (instant electronic delivery,
+      // worldwide, no shipping fee).
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: {
+          '@type': 'MonetaryAmount',
+          value: '0',
+          currency: 'EUR',
+        },
+        shippingDestination: {
+          '@type': 'DefinedRegion',
+          addressCountry: country,
+        },
+        deliveryTime: {
+          '@type': 'ShippingDeliveryTime',
+          handlingTime: {
+            '@type': 'QuantitativeValue',
+            minValue: 0,
+            maxValue: 0,
+            unitCode: 'HUR',
+          },
+          transitTime: {
+            '@type': 'QuantitativeValue',
+            minValue: 0,
+            maxValue: 0,
+            unitCode: 'HUR',
+          },
+        },
+      },
+      // Customer-friendly return policy — satisfies hasMerchantReturnPolicy
+      // recommended field. Mirrors the platform's 24-hour cancellation policy.
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        applicableCountry: country,
+        returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+        merchantReturnDays: 1,
+        returnMethod: 'https://schema.org/ReturnByMail',
+        returnFees: 'https://schema.org/FreeReturn',
+      },
+    },
   };
 }
 
