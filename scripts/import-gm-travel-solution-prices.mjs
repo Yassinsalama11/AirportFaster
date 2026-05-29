@@ -388,12 +388,65 @@ function parseGroupSize(attributes) {
   };
 }
 
+function buildDisplayName(productName, tierLabel, airportName) {
+  // Goal: customer-facing name like "Arrival Meet & Greet" or "VIP Royal Meet & Greet —
+  // up to 4 pax". We derive it from the supplier's product name (which carries the
+  // marketing tier — "ROYAL", "VIP", "STANDARD", "MEET AND ASSIST", etc.) rather
+  // than the supplier company name itself.
+  let name = decodeHtml(productName)
+    .replace(/[‘’`]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/\s+&\s+/g, ' & ')
+    .replace(/–|—/g, '-')
+    .trim();
+
+  // Remove the airport name + city + IATA + "FROM/TO X" tail — that's already known
+  // from the airport/service combination.
+  if (airportName) {
+    const escapedAirport = airportName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    name = name.replace(new RegExp(`\\b(?:FROM|TO|AT|IN)?\\s*${escapedAirport}\\s*(?:AIRPORT|INTERNATIONAL)?\\b`, 'gi'), ' ');
+  }
+  name = name
+    .replace(/\b(?:FROM|TO|AT|IN)\s+[A-Z][A-Z\s'-]+$/i, '')
+    .replace(/\b[A-Z]{3}\b(?:\s*(?:AIRPORT|INTL|INTERNATIONAL))?/g, '')
+    .replace(/\b(?:AIRPORT|INTL|INTERNATIONAL)\b/gi, '')
+    .replace(/[-–—]\s*$/g, '')
+    .replace(/\s*[-–—]\s*[-–—]\s*/g, ' - ')
+    .replace(/\s*-\s+-\s*/g, ' - ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[-–—\s]+|[-–—\s]+$/g, '')
+    .trim();
+
+  // Title-case the result if it came in all-caps.
+  if (name === name.toUpperCase()) {
+    name = name
+      .toLowerCase()
+      .split(' ')
+      .map((w) => (w.length === 0 ? w : w[0].toUpperCase() + w.slice(1)))
+      .join(' ')
+      .replace(/\bVip\b/g, 'VIP')
+      .replace(/\bCip\b/g, 'CIP');
+  }
+
+  // "Meet And Assist" → "Meet & Greet" (our canonical product wording).
+  name = name.replace(/Meet\s+And\s+Assist/gi, 'Meet & Greet');
+  name = name.replace(/Meet\s+&\s+Assist/gi, 'Meet & Greet');
+
+  // Append tier hint if it isn't already in the name.
+  if (tierLabel && !name.toLowerCase().includes(tierLabel.toLowerCase())) {
+    name = `${name} — ${tierLabel}`;
+  }
+
+  return name || SOURCE_NAME;
+}
+
 function productToPriceRecord(airportPage, tab, product) {
   const serviceSlug = mapService(product);
   const direction = mapDirection(product.name, tab.label);
   const priceMinor = Number.parseInt(product.prices?.price ?? '', 10);
   const currency = product.prices?.currency_code;
   const tier = parseGroupSize(product.attributes);
+  const displayName = buildDisplayName(product.name, tier.label, airportPage.title);
   return {
     sourceExternalId: `wc-product:${product.id}:${direction}:${tier.slug}`,
     sourceProductId: String(product.id),
@@ -402,7 +455,7 @@ function productToPriceRecord(airportPage, tab, product) {
     airportPageTitle: airportPage.title,
     serviceSlug,
     direction,
-    displayName: tier.label ? `${SOURCE_NAME} - ${tier.label}` : SOURCE_NAME,
+    displayName,
     priceMinor,
     currency,
     groupSizeIncluded: tier.included,
@@ -645,6 +698,10 @@ async function importPriceRecord(record, context) {
     select: { id: true },
   });
   const now = new Date();
+  // Default validity window: from today to +1 year. Re-running this sync rolls
+  // both dates forward so prices never expire while we keep syncing.
+  const validFrom = now;
+  const validTo = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
 
   await prisma.$transaction(async (tx) => {
     const airportService = await tx.airportService.upsert({
@@ -726,6 +783,8 @@ async function importPriceRecord(record, context) {
         currency: record.currency,
         priority: 50,
         status: 'active',
+        validFrom,
+        validTo,
         passengerPricing: Prisma.JsonNull,
         peakRules: {
           source: SOURCE_NAME,
@@ -756,6 +815,8 @@ async function importPriceRecord(record, context) {
         currency: record.currency,
         priority: 50,
         status: 'active',
+        validFrom,
+        validTo,
         peakRules: {
           source: SOURCE_NAME,
           productId: record.sourceProductId,

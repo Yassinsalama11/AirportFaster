@@ -7,7 +7,7 @@ const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 
 interface AirportTranslation { locale: string; name: string; }
 interface ServiceTranslation { locale: string; name: string; }
-interface PricingRule { basePrice: number; currency: string; }
+interface PricingRule { basePriceMinor: number | null; currency: string; status?: string; }
 interface SearchService {
   id: string;
   slug: string;
@@ -84,8 +84,10 @@ function getServiceName(service: Service, locale: string) {
 
 function getMinPriceMinor(pricingRules?: PricingRule[]): number | null {
   if (!pricingRules || pricingRules.length === 0) return null;
-  const sorted = [...pricingRules].sort((a, b) => a.basePrice - b.basePrice);
-  return sorted[0]?.basePrice ?? null;
+  const valid = pricingRules
+    .filter((r) => r.status !== 'inactive' && r.basePriceMinor != null && r.basePriceMinor > 0)
+    .sort((a, b) => (a.basePriceMinor ?? 0) - (b.basePriceMinor ?? 0));
+  return valid[0]?.basePriceMinor ?? null;
 }
 
 function ServiceIcon({ slug, className }: { slug: string; className?: string }) {
