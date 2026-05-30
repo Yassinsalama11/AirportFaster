@@ -259,9 +259,19 @@ async function fetchWordPressPages() {
 
 function buildAirportPageLinks(catalogue, pages) {
   const catalogueByIata = new Map(catalogue.map((airport) => [airport.iataCode, airport]));
+  // Match any page with "airport" in the slug, excluding the supplier's catalog
+  // landing page and the generic VIP / sectional service pages. Earlier this
+  // also required the slug to contain "service", which silently skipped major
+  // hubs like istanbul-airport, antalya-airport, adelaide-international-airport,
+  // amsterdam-airport-schiphol-..., naples-international-airport-..., and
+  // cape-town-international-airport-... — none of which carry "service" in
+  // their slug but all of which host real WooCommerce products.
+  const SKIP_SLUGS = new Set(['all-airports', 'airport-vip-services']);
   const airportPages = pages.filter((page) => {
     const slug = page.slug ?? '';
-    return /airport/.test(slug) && /service/.test(slug) && slug !== 'airport-vip-services';
+    if (!/airport/.test(slug)) return false;
+    if (SKIP_SLUGS.has(slug)) return false;
+    return true;
   });
   const byIata = new Map();
 
