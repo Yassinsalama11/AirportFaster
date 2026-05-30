@@ -62,7 +62,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     <motion.aside
       animate={{ width: collapsed ? 72 : 256 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed inset-y-0 start-0 h-full bg-brand-navy/95 border-e border-white/5 flex flex-col z-50 overflow-hidden backdrop-blur-2xl light:bg-white/90"
+      className="fixed inset-y-0 start-0 h-full bg-brand-navy border-e border-white/5 flex flex-col z-50 overflow-hidden light:bg-white"
+      style={{ transform: 'translateZ(0)', willChange: 'transform' }}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-white/5 min-h-[72px]">

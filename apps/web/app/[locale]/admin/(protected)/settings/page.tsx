@@ -1,8 +1,17 @@
 import { Link } from '@/i18n/routing';
 import { adminApiCall } from '@/lib/admin-api';
 import { SettingsForm } from '@/components/admin/settings/SettingsForm';
+import { CurrencyRatesPanel } from '@/components/admin/settings/CurrencyRatesPanel';
 
 export const metadata = { title: 'Settings' };
+
+interface CurrencyRateRow {
+  id: string;
+  baseCurrency: string;
+  quoteCurrency: string;
+  rate: string;
+  fetchedAt: string;
+}
 
 async function loadSetting(key: string): Promise<Record<string, unknown>> {
   try {
@@ -10,6 +19,15 @@ async function loadSetting(key: string): Promise<Record<string, unknown>> {
     return res.success ? res.data.settings : {};
   } catch {
     return {};
+  }
+}
+
+async function loadCurrencyRates(): Promise<CurrencyRateRow[]> {
+  try {
+    const res = await adminApiCall<{ rates: CurrencyRateRow[] }>(`/api/admin/currency-rates`);
+    return res.success ? res.data.rates : [];
+  } catch {
+    return [];
   }
 }
 
@@ -21,16 +39,18 @@ export default async function SettingsPage({
   const { tab } = await searchParams;
   const activeTab = tab ?? 'business';
 
-  const [business, commerce, notifications, integrations] = await Promise.all([
+  const [business, commerce, notifications, integrations, currencyRates] = await Promise.all([
     loadSetting('business'),
     loadSetting('commerce'),
     loadSetting('notifications'),
     loadSetting('integrations'),
+    loadCurrencyRates(),
   ]);
 
   const TABS = [
     { key: 'business', label: 'Business Info' },
     { key: 'commerce', label: 'Booking & Commerce' },
+    { key: 'currencies', label: 'Currencies' },
     { key: 'notifications', label: 'Notifications' },
     { key: 'integrations', label: 'Integrations' },
   ];
@@ -58,13 +78,17 @@ export default async function SettingsPage({
         ))}
       </div>
 
-      <SettingsForm
-        activeTab={activeTab}
-        business={business}
-        commerce={commerce}
-        notifications={notifications}
-        integrations={integrations}
-      />
+      {activeTab === 'currencies' ? (
+        <CurrencyRatesPanel initialRates={currencyRates} />
+      ) : (
+        <SettingsForm
+          activeTab={activeTab}
+          business={business}
+          commerce={commerce}
+          notifications={notifications}
+          integrations={integrations}
+        />
+      )}
     </div>
   );
 }

@@ -47,7 +47,7 @@ export function Topbar({ user, sidebarCollapsed: _sidebarCollapsed = false }: To
 
   return (
     <header
-      className="h-16 bg-brand-navy/60 border-b border-white/5 flex items-center justify-between px-6 sticky top-0 z-40 backdrop-blur-md"
+      className="h-16 bg-brand-navy border-b border-white/5 flex items-center justify-between px-6 sticky top-0 z-40"
     >
       {/* Left: status indicator */}
       <div className="flex items-center gap-4">

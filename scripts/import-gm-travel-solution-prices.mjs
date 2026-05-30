@@ -3,6 +3,17 @@ const { prisma, Prisma } = await import(dbModulePath);
 
 const SOURCE_NAME = 'GM Travel Solution';
 const JOB_NAME = 'gm_travel_solution_price_sync';
+
+// AirportFaster customer prices are always EUR. Supplier sells in USD, so we
+// look up the live USD→EUR rate (falling back to the env override and finally
+// a sensible default) and store the converted EUR price on the pricing rule.
+const TARGET_CURRENCY = 'EUR';
+const FALLBACK_USD_TO_EUR = Number(process.env.GM_TRAVEL_USD_TO_EUR_RATE ?? '0.92');
+
+// Default platform commission applied to supplier cost when the supplier
+// doesn't yet have a configured `commissionPercent`. Stored on the supplier so
+// admins can change it later in one place.
+const DEFAULT_COMMISSION_PERCENT = Number(process.env.GM_TRAVEL_DEFAULT_COMMISSION_PCT ?? '20');
 const BASE_URL = process.env.GM_TRAVEL_BASE_URL ?? 'https://gmtravelsolution.com';
 const ALL_AIRPORTS_PAGE_ID = process.env.GM_TRAVEL_ALL_AIRPORTS_PAGE_ID ?? '27264';
 const ALL_AIRPORTS_URL =
@@ -559,17 +570,71 @@ async function runPool(items, worker, concurrency) {
 
 async function ensureSupplier() {
   const existing = await prisma.supplier.findFirst({ where: { name: SOURCE_NAME } });
-  if (existing) return existing;
-  if (DRY_RUN) return { id: 'dry-run-supplier', name: SOURCE_NAME };
+  if (existing) {
+    // Backfill commissionPercent if missing — keeps the sync forward-compatible
+    // for suppliers that were created before commission was a tracked field.
+    if (existing.commissionPercent == null && !DRY_RUN) {
+      return prisma.supplier.update({
+        where: { id: existing.id },
+        data: { commissionPercent: DEFAULT_COMMISSION_PERCENT },
+      });
+    }
+    return existing;
+  }
+  if (DRY_RUN) {
+    return {
+      id: 'dry-run-supplier',
+      name: SOURCE_NAME,
+      commissionPercent: DEFAULT_COMMISSION_PERCENT,
+    };
+  }
   return prisma.supplier.create({
     data: {
       name: SOURCE_NAME,
       legalName: SOURCE_NAME,
       status: 'verified',
       payoutCurrency: 'USD',
+      commissionPercent: DEFAULT_COMMISSION_PERCENT,
       notes: 'Created by GM Travel Solution automated supplier price sync.',
     },
   });
+}
+
+// Look up the USD→EUR conversion rate from the `currency_rates` table, with
+// graceful fallback to env override / hardcoded value so the sync never fails
+// on a fresh DB.
+async function getUsdToEurRate() {
+  if (DRY_RUN) return FALLBACK_USD_TO_EUR;
+  const row = await prisma.currencyRate.findUnique({
+    where: { baseCurrency_quoteCurrency: { baseCurrency: 'USD', quoteCurrency: 'EUR' } },
+  });
+  if (row?.rate != null) {
+    const n = Number(row.rate);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  // Seed a default so the admin can see + edit it in Settings.
+  await prisma.currencyRate.upsert({
+    where: { baseCurrency_quoteCurrency: { baseCurrency: 'USD', quoteCurrency: 'EUR' } },
+    create: {
+      baseCurrency: 'USD',
+      quoteCurrency: 'EUR',
+      rate: FALLBACK_USD_TO_EUR,
+      fetchedAt: new Date(),
+    },
+    update: {},
+  });
+  return FALLBACK_USD_TO_EUR;
+}
+
+// Convert a supplier minor-unit price (USD cents) into customer-facing EUR
+// minor units (cents) with the platform commission applied.
+function toCustomerPriceMinorEur(supplierMinor, supplierCurrency, usdToEur, commissionPct) {
+  const supplierEurMinor =
+    supplierCurrency === 'EUR'
+      ? supplierMinor
+      : Math.round(supplierMinor * usdToEur);
+  const withCommission = Math.round(supplierEurMinor * (1 + commissionPct / 100));
+  return { supplierEurMinor, customerEurMinor: withCommission };
 }
 
 async function ensureServices() {
@@ -703,6 +768,18 @@ async function importPriceRecord(record, context) {
   const validFrom = now;
   const validTo = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
 
+  // Apply currency conversion + platform commission. Customer pays
+  // `customerEurMinor` in EUR; supplier is owed `supplierEurMinor` (also in
+  // EUR for consistent reporting). Both first-passenger and extra-passenger
+  // fields are set to the customer price so the booking calculator scales
+  // linearly with passenger count (one base price per passenger).
+  const { supplierEurMinor, customerEurMinor } = toCustomerPriceMinorEur(
+    record.priceMinor,
+    record.currency,
+    context.usdToEur,
+    context.commissionPct,
+  );
+
   await prisma.$transaction(async (tx) => {
     const airportService = await tx.airportService.upsert({
       where: {
@@ -774,13 +851,15 @@ async function importPriceRecord(record, context) {
         displayName: record.displayName,
         mode: 'fixed',
         direction: record.direction,
-        pricingModel: 'group',
-        basePriceMinor: record.priceMinor,
-        supplierCostMinor: record.priceMinor,
-        extraPassengerMinor: 0,
-        supplierCostExtraMinor: 0,
-        groupSizeIncluded: record.groupSizeIncluded,
-        currency: record.currency,
+        pricingModel: 'tiered',
+        basePriceMinor: customerEurMinor,
+        firstPassengerMinor: customerEurMinor,
+        extraPassengerMinor: customerEurMinor,
+        supplierCostMinor: supplierEurMinor,
+        supplierCostFirstMinor: supplierEurMinor,
+        supplierCostExtraMinor: supplierEurMinor,
+        groupSizeIncluded: 1,
+        currency: TARGET_CURRENCY,
         priority: 50,
         status: 'active',
         validFrom,
@@ -806,13 +885,15 @@ async function importPriceRecord(record, context) {
         displayName: record.displayName,
         mode: 'fixed',
         direction: record.direction,
-        pricingModel: 'group',
-        basePriceMinor: record.priceMinor,
-        supplierCostMinor: record.priceMinor,
-        extraPassengerMinor: 0,
-        supplierCostExtraMinor: 0,
-        groupSizeIncluded: record.groupSizeIncluded,
-        currency: record.currency,
+        pricingModel: 'tiered',
+        basePriceMinor: customerEurMinor,
+        firstPassengerMinor: customerEurMinor,
+        extraPassengerMinor: customerEurMinor,
+        supplierCostMinor: supplierEurMinor,
+        supplierCostFirstMinor: supplierEurMinor,
+        supplierCostExtraMinor: supplierEurMinor,
+        groupSizeIncluded: 1,
+        currency: TARGET_CURRENCY,
         priority: 50,
         status: 'active',
         validFrom,
@@ -874,6 +955,13 @@ async function main() {
   try {
     const supplier = await ensureSupplier();
     const services = await ensureServices();
+    const usdToEur = await getUsdToEurRate();
+    const commissionPct =
+      supplier.commissionPercent != null
+        ? Number(supplier.commissionPercent)
+        : DEFAULT_COMMISSION_PERCENT;
+    summary.usdToEurRate = usdToEur;
+    summary.commissionPercent = commissionPct;
     const airports = await prisma.airport.findMany({
       select: { id: true, iataCode: true },
     });
@@ -922,6 +1010,8 @@ async function main() {
           supplier,
           services,
           airportsByIata,
+          usdToEur,
+          commissionPct,
         });
         if (result.status === 'imported') summary.imported += 1;
         if (result.status === 'updated') summary.updated += 1;

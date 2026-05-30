@@ -37,6 +37,7 @@ import { corporateAdminRoutes, corporatePublicRoutes } from './modules/corporate
 import { apiKeyAdminRoutes, apiV1Routes } from './modules/api-keys/routes.js';
 import { settingsAdminRoutes } from './modules/settings/routes.js';
 import { rolesAdminRoutes } from './modules/roles/routes.js';
+import { currencyRatesAdminRoutes } from './modules/currency-rates/routes.js';
 
 // Initialize Sentry before anything else
 initSentry();
@@ -273,6 +274,8 @@ export async function buildServer() {
   await app.register(settingsAdminRoutes, { prefix: '/api/admin/settings' });
 
   await app.register(rolesAdminRoutes, { prefix: '/api/admin/roles' });
+
+  await app.register(currencyRatesAdminRoutes, { prefix: '/api/admin/currency-rates' });
 
   // ── Public API v1 (developer API, key-authenticated) ──────────────────────
   await app.register(apiV1Routes, { prefix: '/api/v1' });

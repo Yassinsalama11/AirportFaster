@@ -228,6 +228,10 @@ export default async function PaymentPage({ params, searchParams }: PaymentPageP
                   </span>
                 </div>
                 <p className="text-xs text-[#888] mt-1">All taxes and fees included</p>
+                <p className="text-[11px] text-[#888] mt-1.5 leading-snug">
+                  💶 Payment is processed in <strong className="text-[#111]">EUR (€)</strong>.
+                  If your card uses a different currency, your bank will apply its own conversion rate.
+                </p>
               </div>
             </div>
 
