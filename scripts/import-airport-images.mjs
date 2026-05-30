@@ -120,7 +120,15 @@ async function findImageCandidates(airportName, city, iataCode) {
 
   for (const query of queries) {
     for (const provider of PROVIDER_ORDER) {
-      const results = await searchProvider(provider, query, city);
+      // Wrap each provider call so a single rate-limited or broken provider
+      // (e.g. Unsplash 403'ing) doesn't abort the whole search.
+      let results;
+      try {
+        results = await searchProvider(provider, query, city);
+      } catch (error) {
+        console.warn(`[${iataCode}] ${provider} skipped: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
       for (const result of results) {
         const key = `${result.source}:${result.providerId ?? result.url}`;
         if (seen.has(key)) continue;
