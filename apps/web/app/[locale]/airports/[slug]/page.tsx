@@ -493,8 +493,8 @@ export default async function AirportLandingPage({
                     <div className="flex items-center justify-between px-6 py-4">
                       <span className="text-sm text-ink-3">{t('price_on_request')}</span>
                       <Button asChild variant="gold" size="sm">
-                        <Link href={`/airports/${slug}/book?serviceId=${as.id}${forwardedQuery ? `&${forwardedQuery}` : ''}`}>
-                          {t('book_this_service')}
+                        <Link href={`/quote/${slug}?service=${as.service.slug}${forwardedQuery ? `&${forwardedQuery}` : ''}`}>
+                          Request a quote
                         </Link>
                       </Button>
                     </div>

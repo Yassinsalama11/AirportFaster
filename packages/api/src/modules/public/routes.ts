@@ -179,4 +179,81 @@ export async function publicRoutes(fastify: FastifyInstance): Promise<void> {
 
     return reply.status(200).send({ success: true, data: { received: true } });
   });
+
+  // POST /api/public/quote-requests — customer quote request for airports
+  // that don't yet have configured pricing.
+  fastify.post('/quote-requests', async (request, reply) => {
+    const { z } = await import('zod');
+    const { sendQuoteRequestNotification } = await import('../notifications/service.js');
+    const schema = z.object({
+      fullName: z.string().trim().min(2).max(200),
+      email: z.string().trim().email(),
+      phone: z.string().trim().min(4).max(40).optional(),
+      airportSlug: z.string().trim().min(2).max(120),
+      serviceSlug: z.string().trim().min(2).max(120).optional(),
+      direction: z.enum(['arrival', 'departure', 'transfer', 'both']).optional(),
+      serviceDate: z.string().trim().min(4).max(64),
+      passengerCount: z.coerce.number().int().min(1).max(50),
+      flightNumber: z.string().trim().max(20).optional(),
+      terminal: z.string().trim().max(10).optional(),
+      specialRequests: z.string().trim().max(4000).optional(),
+      locale: z.string().trim().min(2).max(8).optional(),
+    });
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid quote request',
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    // Look up airport + optional service for human-friendly names in the email.
+    const airport = await prisma.airport.findUnique({
+      where: { slug: parsed.data.airportSlug },
+      include: { translations: { where: { locale: 'en' } } },
+    });
+    if (!airport) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: 'AIRPORT_NOT_FOUND', message: 'Airport not found' },
+      });
+    }
+    const airportName =
+      airport.translations[0]?.name ?? airport.city ?? `Airport ${airport.iataCode}`;
+
+    let serviceName: string | undefined;
+    if (parsed.data.serviceSlug) {
+      const service = await prisma.service.findUnique({
+        where: { slug: parsed.data.serviceSlug },
+        include: { translations: { where: { locale: 'en' } } },
+      });
+      if (service) serviceName = service.translations[0]?.name ?? service.slug;
+    }
+
+    void sendQuoteRequestNotification({
+      fullName: parsed.data.fullName,
+      email: parsed.data.email,
+      ...(parsed.data.phone && { phone: parsed.data.phone }),
+      airportName,
+      airportIataCode: airport.iataCode,
+      ...(serviceName && { serviceName }),
+      ...(parsed.data.direction && { direction: parsed.data.direction }),
+      serviceDate: parsed.data.serviceDate,
+      passengerCount: parsed.data.passengerCount,
+      ...(parsed.data.flightNumber && { flightNumber: parsed.data.flightNumber }),
+      ...(parsed.data.terminal && { terminal: parsed.data.terminal }),
+      ...(parsed.data.specialRequests && { specialRequests: parsed.data.specialRequests }),
+      ...(request.headers.referer && { sourcePath: request.headers.referer }),
+      ...(request.headers['user-agent'] && { userAgent: request.headers['user-agent'] }),
+    }).catch(() => undefined);
+
+    return reply.status(200).send({
+      success: true,
+      data: { received: true, airport: airport.iataCode, message: 'Quote request received — our team will be in touch within 24 hours.' },
+    });
+  });
 }

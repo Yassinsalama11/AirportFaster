@@ -13,6 +13,7 @@ import { complaintAdminTemplate } from './templates/complaint-admin.js';
 import { bookingDraftReminderTemplate } from './templates/booking-draft-reminder.js';
 import { bookingSalesAlertTemplate, type SalesAlertEvent } from './templates/booking-sales-alert.js';
 import { salesLeadTemplate } from './templates/sales-lead.js';
+import { quoteRequestTemplate, type QuoteRequestData } from './templates/quote-request.js';
 
 // ── SMTP Transport ────────────────────────────────────────────────────────────
 
@@ -303,6 +304,43 @@ export async function sendSalesBookingAlertById(
     return;
   }
   await sendSalesBookingAlert(data, event);
+}
+
+export async function sendQuoteRequestNotification(data: QuoteRequestData): Promise<boolean> {
+  const to = resolveSalesEmails();
+  if (to.length === 0) {
+    logger.warn({ email: data.email }, 'No sales email configured — skipping quote request notification');
+    return false;
+  }
+  try {
+    const template = quoteRequestTemplate(data);
+    await sendEmail(to, template);
+    await logNotification({
+      channel: NotificationChannel.Email,
+      type: NotificationType.SalesLead,
+      recipient: to.join(','),
+      success: true,
+    });
+    logger.info(
+      { email: data.email, airport: data.airportIataCode, service: data.serviceName, to },
+      'Quote request email sent',
+    );
+    return true;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(
+      { error, email: data.email, airport: data.airportIataCode },
+      'Failed to send quote request email',
+    );
+    await logNotification({
+      channel: NotificationChannel.Email,
+      type: NotificationType.SalesLead,
+      recipient: to.join(','),
+      success: false,
+      error: errorMessage,
+    }).catch(() => undefined);
+    return false;
+  }
 }
 
 export async function sendSalesLeadNotification(data: SalesLeadNotificationData): Promise<boolean> {
