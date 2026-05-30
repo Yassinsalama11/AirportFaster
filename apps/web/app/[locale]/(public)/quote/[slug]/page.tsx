@@ -94,15 +94,15 @@ export default async function QuotePage({ params, searchParams }: Props) {
       {/* Header */}
       <header className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-wider text-brand-gold-dark mb-2">
-          Custom Quote
+          Personal Quote
         </p>
         <h1 className="text-3xl lg:text-4xl font-bold text-ink tracking-tight mb-3">
           Request a quote — {name} ({airport.iataCode})
         </h1>
-        <p className="text-body-md text-ink-2 max-w-2xl">
-          We don't have live pricing for this airport yet. Tell us about your trip and our concierge
-          team will email you a tailored price within <strong className="text-ink">24 hours</strong>.
-          No payment is required at this stage.
+        <p className="text-body-md text-ink-2 max-w-2xl leading-relaxed">
+          Share a few details about your trip and our customer service team will get back to you
+          with a <strong className="text-ink">tailored price within minutes</strong>. No payment is
+          taken at this stage — we simply confirm availability and price first.
         </p>
       </header>
 

@@ -14,6 +14,7 @@ import { bookingDraftReminderTemplate } from './templates/booking-draft-reminder
 import { bookingSalesAlertTemplate, type SalesAlertEvent } from './templates/booking-sales-alert.js';
 import { salesLeadTemplate } from './templates/sales-lead.js';
 import { quoteRequestTemplate, type QuoteRequestData } from './templates/quote-request.js';
+import { quoteAcknowledgementTemplate } from './templates/quote-acknowledgement.js';
 
 // ── SMTP Transport ────────────────────────────────────────────────────────────
 
@@ -310,37 +311,59 @@ export async function sendQuoteRequestNotification(data: QuoteRequestData): Prom
   const to = resolveSalesEmails();
   if (to.length === 0) {
     logger.warn({ email: data.email }, 'No sales email configured — skipping quote request notification');
-    return false;
   }
+
+  let salesSucceeded = false;
+  if (to.length > 0) {
+    try {
+      const template = quoteRequestTemplate(data);
+      await sendEmail(to, template);
+      await logNotification({
+        channel: NotificationChannel.Email,
+        type: NotificationType.SalesLead,
+        recipient: to.join(','),
+        success: true,
+      });
+      logger.info(
+        { email: data.email, airport: data.airportIataCode, service: data.serviceName, to },
+        'Quote request email sent',
+      );
+      salesSucceeded = true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(
+        { error, email: data.email, airport: data.airportIataCode },
+        'Failed to send quote request email',
+      );
+      await logNotification({
+        channel: NotificationChannel.Email,
+        type: NotificationType.SalesLead,
+        recipient: to.join(','),
+        success: false,
+        error: errorMessage,
+      }).catch(() => undefined);
+    }
+  }
+
+  // Also send an acknowledgement to the customer so they have visible proof
+  // the request was received. This is in addition to (not instead of) the
+  // sales-team notification so a misdelivered sales inbox doesn't leave the
+  // customer wondering.
   try {
-    const template = quoteRequestTemplate(data);
-    await sendEmail(to, template);
-    await logNotification({
-      channel: NotificationChannel.Email,
-      type: NotificationType.SalesLead,
-      recipient: to.join(','),
-      success: true,
-    });
+    const ackTemplate = quoteAcknowledgementTemplate(data);
+    await sendEmail(data.email, ackTemplate);
     logger.info(
-      { email: data.email, airport: data.airportIataCode, service: data.serviceName, to },
-      'Quote request email sent',
+      { customer: data.email, airport: data.airportIataCode },
+      'Quote acknowledgement email sent to customer',
     );
-    return true;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(
-      { error, email: data.email, airport: data.airportIataCode },
-      'Failed to send quote request email',
+    logger.warn(
+      { error, customer: data.email },
+      'Failed to send quote acknowledgement email to customer',
     );
-    await logNotification({
-      channel: NotificationChannel.Email,
-      type: NotificationType.SalesLead,
-      recipient: to.join(','),
-      success: false,
-      error: errorMessage,
-    }).catch(() => undefined);
-    return false;
   }
+
+  return salesSucceeded;
 }
 
 export async function sendSalesLeadNotification(data: SalesLeadNotificationData): Promise<boolean> {

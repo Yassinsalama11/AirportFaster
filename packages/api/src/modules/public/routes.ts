@@ -188,7 +188,9 @@ export async function publicRoutes(fastify: FastifyInstance): Promise<void> {
     const schema = z.object({
       fullName: z.string().trim().min(2).max(200),
       email: z.string().trim().email(),
-      phone: z.string().trim().min(4).max(40).optional(),
+      // Phone is required: customer service uses WhatsApp / phone as the
+      // primary way to reach the customer with the quote.
+      phone: z.string().trim().min(4).max(40),
       airportSlug: z.string().trim().min(2).max(120),
       serviceSlug: z.string().trim().min(2).max(120).optional(),
       direction: z.enum(['arrival', 'departure', 'transfer', 'both']).optional(),
@@ -237,7 +239,7 @@ export async function publicRoutes(fastify: FastifyInstance): Promise<void> {
     void sendQuoteRequestNotification({
       fullName: parsed.data.fullName,
       email: parsed.data.email,
-      ...(parsed.data.phone && { phone: parsed.data.phone }),
+      phone: parsed.data.phone,
       airportName,
       airportIataCode: airport.iataCode,
       ...(serviceName && { serviceName }),
